@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -10,6 +11,7 @@ const Record: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [bucketCreated, setBucketCreated] = useState(false);
+  const [detailedError, setDetailedError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check authentication status and setup storage on mount
@@ -34,12 +36,30 @@ const Record: React.FC = () => {
         }
 
         // Call the Edge Function to create the videos bucket if it doesn't exist
+        console.log("Calling create-videos-bucket function...");
         const response = await supabase.functions.invoke('create-videos-bucket');
         
         if (response.error) {
           console.error("Error calling create-videos-bucket function:", response.error);
+          
+          // Show detailed error for debugging
+          setDetailedError(`Error calling edge function: ${response.error.message || 'Unknown error'}`);
+          
+          // Check if we can still proceed (maybe the bucket exists already)
+          const { data: buckets } = await supabase.storage.listBuckets();
+          const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
+          
+          if (videoBucket) {
+            console.log("Found videos bucket despite edge function error");
+            setBucketCreated(true);
+            setIsLoading(false);
+            return;
+          }
+          
           throw new Error(`Failed to configure video storage: ${response.error.message}`);
         }
+        
+        console.log("Edge function response:", response);
         
         if (response.data.success) {
           console.log("Videos bucket setup response:", response.data.message);
@@ -104,11 +124,17 @@ const Record: React.FC = () => {
         userName={localStorage.getItem('userName') || ''}
       />
       
-      {authError && (
+      {(authError || detailedError) && (
         <div className="w-full max-w-3xl mx-auto mt-6 px-4">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
             <p className="font-medium">Setup Error:</p>
             <p>{authError}</p>
+            {detailedError && (
+              <div className="mt-2 text-sm border-t border-red-200 pt-2">
+                <p className="font-medium">Technical Details:</p>
+                <p className="font-mono text-xs overflow-auto">{detailedError}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

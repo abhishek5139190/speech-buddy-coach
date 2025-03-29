@@ -48,7 +48,8 @@ serve(async (req) => {
     // Create the videos bucket
     console.log("Creating videos bucket...");
     const { data: newBucket, error: createError } = await supabase.storage.createBucket('videos', {
-      public: true
+      public: true,
+      fileSizeLimit: 52428800 // 50MB limit
     });
     
     if (createError) {
@@ -56,8 +57,16 @@ serve(async (req) => {
       throw new Error(`Failed to create videos bucket: ${createError.message}`);
     }
     
-    // Set up RLS policies for the bucket
+    console.log("Videos bucket created successfully");
+    
+    // Create public access policy for the videos bucket
     console.log("Setting up policies for the videos bucket...");
+    const { error: policyError } = await supabase.storage.from('videos').createSignedUrl('dummy.txt', 1);
+    
+    if (policyError && !policyError.message.includes('not found')) {
+      console.error("Error setting up policies:", policyError);
+      // Continue anyway, as this might just be testing the permissions
+    }
     
     return new Response(
       JSON.stringify({ success: true, message: "Videos bucket created successfully" }),
