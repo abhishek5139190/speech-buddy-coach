@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Play, Pause, Volume2, VolumeX, MessageSquare, CheckCircle, XCircle, Info } from 'lucide-react';
+import { Progress } from "@/components/ui/progress";
+import { Play, Pause, Volume2, VolumeX, MessageSquare, CheckCircle, XCircle, Info, Timer } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
 
 interface FeedbackItem {
@@ -20,6 +20,9 @@ const AnalysisScreen: React.FC = () => {
   const [showVideo, setShowVideo] = useState<boolean>(true);
   const [transcript, setTranscript] = useState<string>("");
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
+  const [progress, setProgress] = useState<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   useEffect(() => {
@@ -28,11 +31,34 @@ const AnalysisScreen: React.FC = () => {
     
     if (recordingUrl && videoRef.current) {
       videoRef.current.src = recordingUrl;
+      
+      // Add event listener for loadedmetadata to get video duration
+      videoRef.current.addEventListener('loadedmetadata', () => {
+        if (videoRef.current) {
+          setDuration(videoRef.current.duration);
+        }
+      });
+      
+      // Add event listener for timeupdate to track current time
+      videoRef.current.addEventListener('timeupdate', () => {
+        if (videoRef.current) {
+          setCurrentTime(videoRef.current.currentTime);
+          // Calculate progress as percentage
+          const progressValue = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+          setProgress(progressValue);
+        }
+      });
     }
     
     return () => {
       if (recordingUrl) {
         URL.revokeObjectURL(recordingUrl);
+      }
+      
+      // Clean up event listeners
+      if (videoRef.current) {
+        videoRef.current.removeEventListener('loadedmetadata', () => {});
+        videoRef.current.removeEventListener('timeupdate', () => {});
       }
     };
   }, []);
@@ -103,6 +129,13 @@ const AnalysisScreen: React.FC = () => {
     }, 3000);
   };
   
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' + secs : secs}`;
+  };
+  
   return (
     <div className="w-full max-w-4xl mx-auto p-4 animate-slide-up">
       <Tabs defaultValue="video" className="w-full">
@@ -134,6 +167,11 @@ const AnalysisScreen: React.FC = () => {
                   onEnded={() => setIsPlaying(false)}
                 />
                 
+                <div className="absolute top-4 right-4 bg-black/70 rounded-full px-3 py-1 text-white flex items-center space-x-1">
+                  <Timer size={16} />
+                  <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                </div>
+                
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 rounded-full px-3 py-1">
                   <Button
                     variant="ghost"
@@ -144,6 +182,10 @@ const AnalysisScreen: React.FC = () => {
                     {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </Button>
                 </div>
+              </div>
+              
+              <div className="px-6 pt-4">
+                <Progress value={progress} className="h-2" />
               </div>
             </CardContent>
           </Card>
@@ -156,14 +198,24 @@ const AnalysisScreen: React.FC = () => {
                 <Volume2 className="h-8 w-8 text-primary" />
               </div>
               
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-full"
-                onClick={togglePlayPause}
-              >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              </Button>
+              <div className="flex flex-col items-center space-y-4 w-full max-w-sm">
+                <div className="w-full px-4">
+                  <Progress value={progress} className="h-2" />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                  onClick={togglePlayPause}
+                >
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
+              </div>
               
               <p className="text-sm text-muted-foreground mt-4">Audio only mode - video hidden</p>
             </CardContent>
