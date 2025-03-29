@@ -2,9 +2,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mic, Pause, Play, RefreshCw, Timer } from 'lucide-react';
+import { Mic, Pause, Play, RefreshCw, Timer, Square } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
+import { Progress } from "@/components/ui/progress";
+
+const MAX_RECORDING_TIME = 150; // 150 seconds recording limit
 
 const RecordingScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -12,7 +15,8 @@ const RecordingScreen: React.FC = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [recordingStatus, setRecordingStatus] = useState<'inactive' | 'recording' | 'paused'>('inactive');
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
-  const [timeLeft, setTimeLeft] = useState<number>(45);
+  const [timeLeft, setTimeLeft] = useState<number>(MAX_RECORDING_TIME);
+  const [progress, setProgress] = useState<number>(0);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -31,7 +35,12 @@ const RecordingScreen: React.FC = () => {
     
     if (recordingStatus === 'recording' && timeLeft > 0) {
       timerId = window.setInterval(() => {
-        setTimeLeft(prev => prev - 1);
+        setTimeLeft(prev => {
+          const newTimeLeft = prev - 1;
+          // Update progress as percentage of time elapsed
+          setProgress(((MAX_RECORDING_TIME - newTimeLeft) / MAX_RECORDING_TIME) * 100);
+          return newTimeLeft;
+        });
       }, 1000);
     }
     
@@ -39,7 +48,7 @@ const RecordingScreen: React.FC = () => {
       stopRecording();
       toast({
         title: "Time's up!",
-        description: "Your 45-second recording is complete.",
+        description: `Your ${MAX_RECORDING_TIME}-second recording is complete.`,
       });
     }
     
@@ -75,7 +84,8 @@ const RecordingScreen: React.FC = () => {
     if (!stream) return;
     
     setRecordingStatus('recording');
-    setTimeLeft(45);
+    setTimeLeft(MAX_RECORDING_TIME);
+    setProgress(0);
     setAudioChunks([]);
     
     const media = new MediaRecorder(stream, { mimeType: 'video/webm' });
@@ -109,7 +119,8 @@ const RecordingScreen: React.FC = () => {
   
   const resetRecording = () => {
     setAudioChunks([]);
-    setTimeLeft(45);
+    setTimeLeft(MAX_RECORDING_TIME);
+    setProgress(0);
     setRecordingStatus('inactive');
   };
   
@@ -127,10 +138,21 @@ const RecordingScreen: React.FC = () => {
     const audioUrl = URL.createObjectURL(audioBlob);
     
     // In a real app, you'd upload or process the blob here
-    // For now, we'll just store it in localStorage
     localStorage.setItem('recordingUrl', audioUrl);
     
+    toast({
+      title: "Processing recording",
+      description: "Your recording is being processed...",
+    });
+    
     navigate('/analysis');
+  };
+
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' + secs : secs}`;
   };
   
   return (
@@ -148,7 +170,7 @@ const RecordingScreen: React.FC = () => {
             
             <div className="absolute top-4 right-4 bg-black/70 rounded-full px-3 py-1 text-white flex items-center space-x-1">
               <Timer size={16} />
-              <span>{timeLeft}s</span>
+              <span>{formatTime(timeLeft)}</span>
             </div>
             
             {recordingStatus === 'recording' && (
@@ -159,9 +181,19 @@ const RecordingScreen: React.FC = () => {
             )}
           </div>
           
+          {/* Progress bar for recording */}
+          {(recordingStatus === 'recording' || recordingStatus === 'paused') && (
+            <div className="px-6 pt-4">
+              <Progress value={progress} className="h-2" />
+              <p className="text-center text-sm text-muted-foreground mt-1">
+                {formatTime(timeLeft)} remaining
+              </p>
+            </div>
+          )}
+          
           <div className="p-6 flex flex-col space-y-4">
             <div className="flex items-center justify-center space-x-4">
-              {recordingStatus === 'inactive' ? (
+              {recordingStatus === 'inactive' && !audioChunks.length && (
                 <Button
                   onClick={startRecording}
                   disabled={!permission}
@@ -170,7 +202,9 @@ const RecordingScreen: React.FC = () => {
                   <Mic className="mr-2 h-5 w-5" />
                   Start Recording
                 </Button>
-              ) : (
+              )}
+              
+              {(recordingStatus === 'recording' || recordingStatus === 'paused') && (
                 <>
                   <Button
                     onClick={pauseRecording}
@@ -185,7 +219,7 @@ const RecordingScreen: React.FC = () => {
                     variant="destructive"
                     className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
                   >
-                    <span className="h-5 w-5 block bg-white rounded-sm"></span>
+                    <Square className="h-4 w-4" />
                   </Button>
                 </>
               )}
@@ -215,7 +249,7 @@ const RecordingScreen: React.FC = () => {
       </Card>
       
       <div className="mt-6 text-center text-sm text-muted-foreground">
-        <p>Record up to 45 seconds of video for analysis</p>
+        <p>Record up to {MAX_RECORDING_TIME / 60} minutes of video for analysis</p>
         <p className="mt-1">Ensure you are in a well-lit environment with clear audio</p>
       </div>
     </div>
