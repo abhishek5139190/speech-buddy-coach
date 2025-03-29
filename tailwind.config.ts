@@ -65,9 +65,9 @@ export default {
 				},
 				// Custom theme colors - updated to new palette
 				brand: {
-					blue: '#4A8BDF',
-					pink: '#A0006D',
-					pale: '#EFFAFD',
+					beige: '#F2EFE7',
+					teal: '#9ACBD0',
+					darkTeal: '#006A71',
 				}
 			},
 			borderRadius: {

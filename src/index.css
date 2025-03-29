@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 195 70% 97%; /* #EFFAFD - pale blue */
+    --background: 48 17% 94%; /* #F2EFE7 - soft beige */
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -14,16 +14,16 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 215 74% 58%; /* #4A8BDF - royal blue */
+    --primary: 184 48% 44%; /* #006A71 - dark teal */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 320 100% 31%; /* #A0006D - eggplant */
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 184 32% 71%; /* #9ACBD0 - teal */
+    --secondary-foreground: 184 48% 24%;
 
-    --muted: 195 30% 90%;
+    --muted: 48 17% 88%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 195 70% 90%;
+    --accent: 184 32% 86%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,7 +31,7 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 215 74% 58%;
+    --ring: 184 48% 44%;
 
     --radius: 0.5rem;
 
@@ -55,16 +55,16 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 215 74% 48%; /* Darker royal blue for dark mode */
+    --primary: 184 48% 38%; /* Darker dark teal for dark mode */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 320 100% 25%; /* Darker eggplant for dark mode */
+    --secondary: 184 32% 61%; /* Darker teal for dark mode */
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 215 74% 20%;
+    --accent: 184 48% 24%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -72,7 +72,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 215 74% 58%;
+    --ring: 184 48% 44%;
     
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -97,7 +97,7 @@
 
 @layer components {
   .hero-gradient {
-    @apply bg-gradient-to-br from-brand-pale via-white to-brand-pale dark:from-gray-900 dark:via-primary/10 dark:to-gray-900;
+    @apply bg-gradient-to-br from-brand-beige via-white to-brand-beige dark:from-gray-900 dark:via-primary/10 dark:to-gray-900;
   }
   
   .card-hover {
@@ -105,6 +105,6 @@
   }
   
   .button-gradient {
-    @apply bg-gradient-to-r from-brand-blue to-brand-blue/80 text-white hover:from-brand-blue/90 hover:to-brand-blue/70 transition-all;
+    @apply bg-gradient-to-r from-brand-darkTeal to-brand-teal text-white hover:from-brand-darkTeal/90 hover:to-brand-teal/90 transition-all;
   }
 }
