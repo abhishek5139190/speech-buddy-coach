@@ -166,13 +166,17 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
                 <FormItem className="space-y-2">
                   <FormLabel>Verification Code</FormLabel>
                   <FormControl>
-                    <InputOTP maxLength={6} {...field} render={({ slots }) => (
-                      <InputOTPGroup className="gap-2 justify-center">
-                        {slots.map((slot, index) => (
-                          <InputOTPSlot key={index} {...slot} index={index} className="h-12 w-12 text-center text-lg" />
-                        ))}
-                      </InputOTPGroup>
-                    )} />
+                    <InputOTP 
+                      maxLength={6} 
+                      {...field} 
+                      render={({ slots }) => (
+                        <InputOTPGroup className="gap-2 justify-center">
+                          {slots && Array.isArray(slots) ? slots.map((slot, index) => (
+                            <InputOTPSlot key={index} {...slot} index={index} className="h-12 w-12 text-center text-lg" />
+                          )) : null}
+                        </InputOTPGroup>
+                      )}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
