@@ -68,7 +68,7 @@ const Index: React.FC = () => {
                     "Emotional tone feedback"
                   ].map((feature, index) => (
                     <li key={index} className="flex items-start space-x-2">
-                      <span className="h-5 w-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs mt-0.5">✓</span>
+                      <span className="h-5 w-5 rounded-full bg-brand-pale text-brand-blue flex items-center justify-center text-xs mt-0.5">✓</span>
                       <span>{feature}</span>
                     </li>
                   ))}

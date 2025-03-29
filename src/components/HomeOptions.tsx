@@ -19,7 +19,7 @@ const HomeOptions: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="pb-2 md:pb-4">
-          <div className="rounded-md bg-secondary/30 p-4 md:p-6 flex justify-center items-center">
+          <div className="rounded-md bg-brand-pale p-4 md:p-6 flex justify-center items-center">
             <div className="h-12 w-12 md:h-16 md:w-16 rounded-full bg-brand-blue flex items-center justify-center">
               <Mic className="h-6 w-6 md:h-8 md:w-8 text-white" />
             </div>
@@ -45,7 +45,7 @@ const HomeOptions: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="pb-2 md:pb-4">
-          <div className="rounded-md bg-secondary/30 p-4 md:p-6 flex justify-center items-center">
+          <div className="rounded-md bg-brand-pale p-4 md:p-6 flex justify-center items-center">
             <div className="h-12 w-12 md:h-16 md:w-16 rounded-full bg-brand-blue flex items-center justify-center">
               <Upload className="h-6 w-6 md:h-8 md:w-8 text-white" />
             </div>

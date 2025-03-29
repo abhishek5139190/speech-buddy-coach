@@ -63,10 +63,11 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Custom theme colors
+				// Custom theme colors - updated to new palette
 				brand: {
-					blue: '#2F3C7E',
-					pink: '#FBEAEB',
+					blue: '#4A8BDF',
+					pink: '#A0006D',
+					pale: '#EFFAFD',
 				}
 			},
 			borderRadius: {

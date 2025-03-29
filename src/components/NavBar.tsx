@@ -42,7 +42,7 @@ const NavBar: React.FC<NavBarProps> = ({ isAuthenticated, onLogout, userName }) 
   );
 
   return (
-    <nav className="w-full py-4 px-4 md:px-6 flex items-center justify-between bg-white dark:bg-gray-900 shadow-sm">
+    <nav className="w-full py-4 px-4 md:px-6 flex items-center justify-between bg-brand-pale dark:bg-gray-900 shadow-sm">
       <Link to="/" className="flex items-center space-x-2">
         <div className="h-8 w-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold">
           AC
