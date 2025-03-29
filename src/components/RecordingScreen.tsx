@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-const MAX_RECORDING_TIME = 150; // 150 seconds recording limit
+const MAX_RECORDING_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
 const MAX_ALLOWED_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
 
 interface RecordingScreenProps {
@@ -220,48 +220,16 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       const userId = session.user.id;
       
-      const bucketAccessible = await checkVideoBucket();
-      if (!bucketAccessible) {
-        throw new Error("Video storage bucket ('videos') is not available. Please refresh the page and try again.");
-      }
-      
       const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
       const audioUrl = URL.createObjectURL(audioBlob);
       
       localStorage.setItem('recordingUrl', audioUrl);
       
-      const filename = `${userId}/${Date.now()}.webm`;
-      
-      toast({
-        title: "Uploading video",
-        description: "Saving your recording to the cloud...",
-      });
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(filename, audioBlob, {
-          contentType: 'video/webm',
-          cacheControl: '3600'
-        });
-      
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-      
-      const { data: publicURLData } = supabase.storage
-        .from('videos')
-        .getPublicUrl(filename);
-      
-      const videoUrl = publicURLData.publicUrl;
-      
-      console.log("Video uploaded successfully, URL:", videoUrl);
-      
       const { data: videoAnalysis, error: dbError } = await supabase
         .from('video_analysis')
         .insert({
           user_id: userId,
-          video_path: videoUrl
+          video_path: 'local'
         })
         .select()
         .single();
@@ -275,25 +243,26 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       toast({
         title: "Processing transcription",
-        description: "Your video is being processed for transcription...",
+        description: "Your video is being transcribed...",
       });
       
       const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-video', {
         body: { 
-          videoUrl,
-          userId
+          userId,
+          videoData: await blobToBase64(audioBlob)
         }
       });
       
       if (transcriptionError) {
         console.error("Transcription error:", transcriptionError);
+        throw new Error(`Transcription error: ${transcriptionError.message}`);
       } else {
         console.log("Transcription initiated:", transcriptionData);
       }
       
       toast({
         title: "Processing complete",
-        description: "Your recording has been saved and transcription is in progress.",
+        description: "Your recording is ready for analysis.",
       });
       
       navigate('/analysis');
@@ -309,6 +278,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        resolve(base64String.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   };
 
   const formatTime = (seconds: number): string => {
@@ -417,7 +398,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
               {recordingStatus === 'inactive' && audioChunks.length === 0 && (
                 <Button
                   onClick={startRecording}
-                  disabled={!permission || !bucketVerified}
+                  disabled={!permission}
                   variant="default"
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white"
                 >
@@ -462,7 +443,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
                 <Button
                   onClick={processRecording}
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white space-x-2"
-                  disabled={isProcessing || !bucketVerified}
+                  disabled={isProcessing}
                 >
                   {isProcessing ? (
                     <>

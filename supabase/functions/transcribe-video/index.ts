@@ -24,18 +24,17 @@ serve(async (req) => {
       throw new Error("Invalid request body format");
     }
     
-    const { videoUrl, userId } = requestBody;
+    const { videoData, userId } = requestBody;
     
-    if (!videoUrl) {
-      throw new Error("Video URL is required");
+    if (!videoData) {
+      throw new Error("Video data is required");
     }
     
     if (!userId) {
       throw new Error("User ID is required");
     }
 
-    console.log(`Processing transcription for video: ${videoUrl}`);
-    console.log(`User ID: ${userId}`);
+    console.log(`Processing transcription for user: ${userId}`);
     
     // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
@@ -47,31 +46,10 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Check if the videos bucket exists
-    console.log("Checking if videos bucket exists...");
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    // Convert base64 to binary
+    const binary = Uint8Array.from(atob(videoData), c => c.charCodeAt(0));
+    const videoBlob = new Blob([binary], { type: 'video/webm' });
     
-    if (bucketsError) {
-      console.error("Error listing buckets:", bucketsError);
-      throw new Error(`Failed to list storage buckets: ${bucketsError.message}`);
-    }
-    
-    const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
-    if (!videoBucket) {
-      console.error("Videos bucket does not exist");
-      throw new Error("Videos storage is not properly configured");
-    }
-    
-    // Fetch the video content
-    console.log("Fetching video content...");
-    const videoResponse = await fetch(videoUrl);
-    if (!videoResponse.ok) {
-      console.error(`Video fetch error: ${videoResponse.status} ${videoResponse.statusText}`);
-      throw new Error(`Failed to fetch video: ${videoResponse.statusText}`);
-    }
-    
-    // Get video as blob
-    const videoBlob = await videoResponse.blob();
     console.log(`Video blob size: ${videoBlob.size} bytes`);
     
     if (videoBlob.size === 0) {
@@ -111,8 +89,10 @@ serve(async (req) => {
     const { error } = await supabase
       .from('video_analysis')
       .update({ transcript })
-      .eq('video_path', videoUrl)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .is('video_path', 'local')
+      .order('created_at', { ascending: false })
+      .limit(1);
     
     if (error) {
       console.error("Error updating transcript:", error);

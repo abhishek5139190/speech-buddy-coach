@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,9 +25,8 @@ const AnalysisScreen: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
-  const [videoUrl, setVideoUrl] = useState<string>("");
-  const [videoId, setVideoId] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPolling, setIsPolling] = useState<boolean>(false);
   
   useEffect(() => {
     // Get the recording URL from localStorage
@@ -34,7 +34,6 @@ const AnalysisScreen: React.FC = () => {
     
     if (recordingUrl && videoRef.current) {
       videoRef.current.src = recordingUrl;
-      setVideoUrl(recordingUrl);
       
       // Add event listener for loadedmetadata to get video duration
       videoRef.current.addEventListener('loadedmetadata', () => {
@@ -71,9 +70,15 @@ const AnalysisScreen: React.FC = () => {
         if (error) {
           console.error("Error fetching video analysis:", error);
         } else if (data) {
-          setVideoId(data.id);
           if (data.transcript) {
             setTranscript(data.transcript);
+            toast({
+              title: "Transcript Loaded",
+              description: "Your video transcript is ready",
+            });
+          } else {
+            // Start polling for transcript if not available
+            setIsPolling(true);
           }
         }
       } catch (error) {
@@ -98,19 +103,25 @@ const AnalysisScreen: React.FC = () => {
   
   // Set up polling for transcript if it's not available
   useEffect(() => {
-    if (!transcript && videoId) {
+    if (isPolling && !transcript) {
       const pollInterval = setInterval(async () => {
         try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          
           const { data, error } = await supabase
             .from('video_analysis')
             .select('transcript')
-            .eq('id', videoId)
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
             .single();
             
           if (error) {
             console.error("Error polling for transcript:", error);
           } else if (data && data.transcript) {
             setTranscript(data.transcript);
+            setIsPolling(false);
             clearInterval(pollInterval);
             toast({
               title: "Transcript Ready",
@@ -124,7 +135,7 @@ const AnalysisScreen: React.FC = () => {
       
       return () => clearInterval(pollInterval);
     }
-  }, [transcript, videoId]);
+  }, [isPolling, transcript]);
   
   const togglePlayPause = () => {
     if (videoRef.current) {
@@ -147,40 +158,52 @@ const AnalysisScreen: React.FC = () => {
   const analyzeRecording = () => {
     setIsAnalyzing(true);
     
-    // If we already have a transcript, use it
-    if (transcript) {
-      generateFeedback(transcript);
-      return;
-    }
-    
-    // Otherwise, generate a mock transcript
-    setTimeout(() => {
-      // Mock transcript
-      const mockTranscript = 
-        "Hello, my name is... um... John and I'm here to talk about our new product. It's really, you know, amazing and has tons of features that I think... uh... you'll really like. So, basically what it does is... it helps you communicate better by analyzing your speech patterns and giving feedback.";
-      
-      setTranscript(mockTranscript);
-      generateFeedback(mockTranscript);
-    }, 3000);
+    // Generate feedback based on the transcript
+    generateFeedback(transcript);
   };
   
   const generateFeedback = (transcriptText: string) => {
+    // Analyze transcript for filler words
+    const fillerWords = ['um', 'uh', 'like', 'you know', 'actually', 'basically'];
+    const fillerWordCounts = fillerWords.map(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      const matches = transcriptText.match(regex);
+      return { word, count: matches ? matches.length : 0 };
+    }).filter(item => item.count > 0);
+    
+    const totalFillerWords = fillerWordCounts.reduce((acc, curr) => acc + curr.count, 0);
+    
+    // Calculate words per minute
+    const wordCount = transcriptText.split(/\s+/).length;
+    const durationInMinutes = duration / 60;
+    const wpm = Math.round(wordCount / durationInMinutes);
+    
     // Mock feedback generation based on transcript
     const mockFeedback = [
       {
         category: "Filler Words",
-        positive: false,
-        text: "Used 'um' and 'uh' 3 times. Try to eliminate these filler words for clearer delivery."
+        positive: totalFillerWords < 3,
+        text: totalFillerWords < 3 
+          ? "Good control of filler words. Keep it up!" 
+          : `Used filler words ${totalFillerWords} times (${fillerWordCounts.map(f => `"${f.word}": ${f.count}`).join(', ')}). Try to eliminate these for clearer delivery.`
       },
       {
         category: "Pace",
-        positive: true,
-        text: "Good speaking pace at 145 words per minute, which is in the ideal range for comprehension."
+        positive: wpm >= 120 && wpm <= 160,
+        text: `Speaking pace at ${wpm} words per minute. ${
+          wpm < 120 
+            ? "Try speaking a bit faster to keep the audience engaged." 
+            : wpm > 160 
+              ? "Consider slowing down for better comprehension." 
+              : "This is in the ideal range for comprehension."
+        }`
       },
       {
-        category: "Pauses",
-        positive: false,
-        text: "Several unintentional pauses detected. Practice using deliberate pauses to emphasize key points."
+        category: "Clarity",
+        positive: wordCount > 50,
+        text: wordCount > 50 
+          ? "Good articulation and clear speech delivery." 
+          : "Speech may be too brief for comprehensive analysis. Consider speaking more for better feedback."
       },
       {
         category: "Grammar",
@@ -188,9 +211,11 @@ const AnalysisScreen: React.FC = () => {
         text: "No significant grammar issues detected."
       },
       {
-        category: "Body Language",
-        positive: false,
-        text: "Limited eye contact with camera. Try to look directly at the camera more consistently."
+        category: "Content Structure",
+        positive: transcriptText.length > 100,
+        text: transcriptText.length > 100 
+          ? "Good content structure with clear points." 
+          : "Consider structuring your content with clear introduction, points, and conclusion."
       }
     ];
     
@@ -317,6 +342,7 @@ const AnalysisScreen: React.FC = () => {
               <div className="text-center py-10 text-muted-foreground">
                 <p>Transcript is being generated...</p>
                 <p className="text-xs mt-2">This may take a few minutes</p>
+                <div className="mt-4 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
               </div>
             )}
           </CardContent>
@@ -380,7 +406,7 @@ const AnalysisScreen: React.FC = () => {
       </div>
       
       <div className="mt-6 text-center text-sm text-muted-foreground">
-        <p>AI analysis includes grammar, filler words, pace, pauses, body language, and more</p>
+        <p>AI analysis includes grammar, filler words, pace, pauses, and more</p>
       </div>
     </div>
   );
