@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -221,7 +220,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       const userId = session.user.id;
       
-      const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       const audioUrl = URL.createObjectURL(audioBlob);
       
       localStorage.setItem('recordingUrl', audioUrl);
@@ -247,19 +246,26 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
         description: "Your video is being transcribed...",
       });
       
+      const base64Data = await blobToBase64(audioBlob);
       const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-video', {
         body: { 
           userId,
-          videoData: await blobToBase64(audioBlob)
+          videoData: base64Data
         }
       });
       
       if (transcriptionError) {
         console.error("Transcription error:", transcriptionError);
         throw new Error(`Transcription error: ${transcriptionError.message}`);
-      } else {
-        console.log("Transcription initiated:", transcriptionData);
       }
+      
+      if (!transcriptionData || !transcriptionData.success) {
+        const errorMessage = transcriptionData?.error || "Unknown transcription error";
+        console.error("Transcription failed:", errorMessage);
+        throw new Error(`Transcription failed: ${errorMessage}`);
+      }
+      
+      console.log("Transcription result:", transcriptionData);
       
       toast({
         title: "Processing complete",

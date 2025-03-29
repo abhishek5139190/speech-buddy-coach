@@ -59,14 +59,17 @@ serve(async (req) => {
     // Use Eleven Labs API to transcribe
     console.log("Sending to Eleven Labs for transcription...");
     const formData = new FormData();
-    formData.append("audio", videoBlob, "recording.webm");
+    
+    // Add required model_id parameter - using multilingual model for best accuracy
+    formData.append("model_id", "eleven_multilingual_v2");
+    formData.append("file", videoBlob, "recording.webm");
     
     const elevenLabsApiKey = Deno.env.get("ELEVEN_LABS_API_KEY") as string;
     if (!elevenLabsApiKey) {
       throw new Error("ELEVEN_LABS_API_KEY is not set");
     }
     
-    // Updated to use the correct Eleven Labs transcription endpoint
+    console.log("Making request to Eleven Labs API with correct parameters...");
     const elevenLabsResponse = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
       method: "POST",
       headers: {
@@ -82,6 +85,8 @@ serve(async (req) => {
     }
     
     const transcriptionResult = await elevenLabsResponse.json();
+    console.log("Transcription result received:", transcriptionResult);
+    
     const transcript = transcriptionResult.text || "No transcript available";
     
     console.log("Transcript received:", transcript);
