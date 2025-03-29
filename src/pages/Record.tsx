@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import RecordingScreen from '@/components/RecordingScreen';
@@ -8,14 +8,14 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Record: React.FC = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // First check localStorage for immediate UI response
-    const isAuthFromStorage = localStorage.getItem('isAuthenticated') === 'true';
-    
-    if (!isAuthFromStorage) {
-      // Then verify with Supabase for security
-      supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check authentication status on mount
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
         if (!session) {
           toast({
             variant: "destructive",
@@ -24,16 +24,45 @@ const Record: React.FC = () => {
           });
           navigate('/');
         }
-      });
-    }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Authentication error:", error);
+        toast({
+          variant: "destructive",
+          title: "Authentication error",
+          description: "There was a problem verifying your login status",
+        });
+        navigate('/');
+      }
+    };
+    
+    checkAuth();
   }, [navigate]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userName');
-    navigate('/');
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userName');
+      navigate('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        variant: "destructive",
+        title: "Logout error",
+        description: "There was a problem signing you out",
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 border-4 border-t-brand-blue border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

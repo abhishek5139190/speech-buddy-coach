@@ -163,6 +163,14 @@ const RecordingScreen: React.FC = () => {
         description: "Saving your recording to the cloud...",
       });
       
+      // First check if storage bucket exists, if not, let the user know
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
+      
+      if (!videoBucket) {
+        throw new Error("Video storage is not configured. Please contact support.");
+      }
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('videos')
         .upload(filename, audioBlob, {
@@ -171,6 +179,7 @@ const RecordingScreen: React.FC = () => {
         });
       
       if (uploadError) {
+        console.error("Upload error:", uploadError);
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
       
@@ -180,6 +189,8 @@ const RecordingScreen: React.FC = () => {
         .getPublicUrl(filename);
       
       const videoUrl = publicURLData.publicUrl;
+      
+      console.log("Video uploaded successfully, URL:", videoUrl);
       
       // Save metadata to the database
       const { data: videoAnalysis, error: dbError } = await supabase
@@ -192,8 +203,11 @@ const RecordingScreen: React.FC = () => {
         .single();
       
       if (dbError) {
+        console.error("Database error:", dbError);
         throw new Error(`Database error: ${dbError.message}`);
       }
+      
+      console.log("Video analysis record created:", videoAnalysis);
       
       // Start transcription process
       toast({
@@ -202,12 +216,19 @@ const RecordingScreen: React.FC = () => {
       });
       
       // Call edge function to start transcription
-      await supabase.functions.invoke('transcribe-video', {
+      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-video', {
         body: { 
           videoUrl,
           userId
         }
       });
+      
+      if (transcriptionError) {
+        console.error("Transcription error:", transcriptionError);
+        // Continue anyway, as we'll poll for the transcript
+      } else {
+        console.log("Transcription initiated:", transcriptionData);
+      }
       
       toast({
         title: "Processing complete",

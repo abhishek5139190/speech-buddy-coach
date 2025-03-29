@@ -40,16 +40,22 @@ serve(async (req) => {
     
     // Get video as blob
     const videoBlob = await videoResponse.blob();
+    console.log(`Video blob size: ${videoBlob.size} bytes`);
     
     // Use Eleven Labs API to transcribe
     console.log("Sending to Eleven Labs for transcription...");
     const formData = new FormData();
     formData.append("audio", videoBlob, "video.webm");
     
+    const elevenLabsApiKey = Deno.env.get("ELEVEN_LABS_API_KEY") as string;
+    if (!elevenLabsApiKey) {
+      throw new Error("ELEVEN_LABS_API_KEY is not set");
+    }
+    
     const elevenLabsResponse = await fetch("https://api.elevenlabs.io/v1/audio/speech-to-text", {
       method: "POST",
       headers: {
-        "xi-api-key": Deno.env.get("ELEVEN_LABS_API_KEY") as string,
+        "xi-api-key": elevenLabsApiKey,
       },
       body: formData,
     });
