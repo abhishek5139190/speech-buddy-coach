@@ -8,13 +8,11 @@ import { useNavigate } from 'react-router-dom';
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import ApiKeyInput from '@/components/ApiKeyInput';
+import { useElevenLabs } from '@/hooks/use-eleven-labs';
 
 const MAX_RECORDING_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
 const MAX_ALLOWED_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
-
-// Eleven Labs API key - This should ideally be stored securely in your environment variables
-// For a production app, consider using a backend service to handle API requests
-const ELEVEN_LABS_API_KEY = "YOUR_ELEVEN_LABS_API_KEY"; // Replace with your actual API key or prompt the user to provide it
 
 interface RecordingScreenProps {
   isBucketReady?: boolean;
@@ -31,8 +29,27 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [bucketVerified, setBucketVerified] = useState<boolean>(false);
+  const [apiKey, setApiKey] = useState<string>(localStorage.getItem("eleven_labs_api_key") || "");
+  
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  
+  const elevenLabs = useElevenLabs(apiKey, {
+    onTranscriptionStart: () => {
+      toast({
+        title: "Processing transcription",
+        description: "Your video is being transcribed...",
+      });
+    },
+    onTranscriptionError: (error) => {
+      setErrorDetails(error.message);
+      toast({
+        variant: "destructive",
+        title: "Transcription failed",
+        description: error.message,
+      });
+    }
+  });
   
   useEffect(() => {
     if (isBucketReady) {
@@ -214,6 +231,16 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       return;
     }
     
+    if (!apiKey) {
+      setErrorDetails("Eleven Labs API key is required to process recordings.");
+      toast({
+        variant: "destructive",
+        title: "API Key Required",
+        description: "Please enter your Eleven Labs API key to process recordings",
+      });
+      return;
+    }
+    
     setIsProcessing(true);
     setErrorDetails(null);
     
@@ -246,46 +273,14 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       console.log("Video analysis record created:", videoAnalysis);
       
-      toast({
-        title: "Processing transcription",
-        description: "Your video is being transcribed...",
-      });
-      
-      // Direct API call to Eleven Labs instead of using Edge Function
-      const formData = new FormData();
-      formData.append("model_id", "scribe_v1"); // Using the correct model ID
-      formData.append("file", audioBlob, "recording.webm");
-      
-      console.log("Making direct request to Eleven Labs API...");
-      const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVEN_LABS_API_KEY,
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Eleven Labs API error:", errorText);
-        throw new Error(`Eleven Labs API error: ${response.statusText}`);
-      }
-      
-      const transcriptionResult = await response.json();
-      console.log("Transcription result received:", transcriptionResult);
-      
-      const transcript = transcriptionResult.text || "No transcript available";
-      
-      console.log("Transcript received:", transcript);
+      // Use our custom hook to transcribe the audio
+      const transcript = await elevenLabs.transcribeAudio(audioBlob);
       
       // Update the video_analysis record with the transcript
       const { error } = await supabase
         .from('video_analysis')
         .update({ transcript })
-        .eq('user_id', userId)
-        .eq('video_path', 'local')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .eq('id', videoAnalysis.id);
       
       if (error) {
         console.error("Error updating transcript:", error);
@@ -387,6 +382,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
         </Alert>
       )}
       
+      <Card className="mb-4">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-medium mb-2">Eleven Labs API Key</h3>
+          <ApiKeyInput onApiKeySet={setApiKey} defaultApiKey={apiKey} />
+        </CardContent>
+      </Card>
+      
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="relative">
@@ -432,7 +434,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
               {recordingStatus === 'inactive' && audioChunks.length === 0 && (
                 <Button
                   onClick={startRecording}
-                  disabled={!permission}
+                  disabled={!permission || !apiKey}
                   variant="default"
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white"
                 >
@@ -477,9 +479,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
                 <Button
                   onClick={processRecording}
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white space-x-2"
-                  disabled={isProcessing}
+                  disabled={isProcessing || !apiKey || elevenLabs.isTranscribing}
                 >
-                  {isProcessing ? (
+                  {isProcessing || elevenLabs.isTranscribing ? (
                     <>
                       <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                       <span>Processing...</span>
