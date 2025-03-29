@@ -105,6 +105,10 @@
   }
   
   .button-gradient {
-    @apply bg-gradient-to-r from-brand-darkTeal to-brand-teal text-white hover:from-brand-darkTeal/90 hover:to-brand-teal/90 transition-all;
+    @apply bg-gradient-to-r from-brand-darkTeal to-brand-mediumTeal text-white hover:from-brand-darkTeal/90 hover:to-brand-mediumTeal/90 transition-all;
+  }
+
+  .medium-teal-gradient {
+    @apply bg-gradient-to-r from-brand-mediumTeal to-brand-teal hover:from-brand-mediumTeal/90 hover:to-brand-teal/90 transition-all;
   }
 }

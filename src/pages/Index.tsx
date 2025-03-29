@@ -43,7 +43,7 @@ const Index: React.FC = () => {
           // Home screen with options
           <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6">
             <div className="text-center mb-6 md:mb-8">
-              <h1 className="text-2xl md:text-3xl font-bold text-brand-darkTeal mb-2">AI Communication Coach</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-brand-mediumTeal mb-2">AI Communication Coach</h1>
               <p className="text-base md:text-lg text-muted-foreground">Enhance your speaking skills with AI-powered analysis</p>
             </div>
             <HomeOptions />
@@ -53,7 +53,7 @@ const Index: React.FC = () => {
           <div className="flex-1 hero-gradient">
             <div className="container mx-auto px-4 py-8 md:py-12 flex flex-col items-center md:flex-row md:items-center md:justify-between gap-8 md:gap-12">
               <div className="w-full md:w-1/2 space-y-4 md:space-y-6 text-center md:text-left">
-                <h1 className="text-3xl md:text-5xl font-bold text-brand-darkTeal">
+                <h1 className="text-3xl md:text-5xl font-bold text-brand-mediumTeal">
                   Improve Your Communication Skills
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground">

@@ -35,7 +35,7 @@ const NavBar: React.FC<NavBarProps> = ({ isAuthenticated, onLogout, userName }) 
         </div>
       ) : (
         <Link to="/">
-          <Button size="sm" variant="outline">Sign In</Button>
+          <Button size="sm" className="bg-brand-mediumTeal hover:bg-brand-mediumTeal/90 text-white">Sign In</Button>
         </Link>
       )}
     </>
@@ -44,7 +44,7 @@ const NavBar: React.FC<NavBarProps> = ({ isAuthenticated, onLogout, userName }) 
   return (
     <nav className="w-full py-4 px-4 md:px-6 flex items-center justify-between bg-brand-beige dark:bg-gray-900 shadow-sm">
       <Link to="/" className="flex items-center space-x-2">
-        <div className="h-8 w-8 rounded-full bg-brand-darkTeal text-white flex items-center justify-center font-bold">
+        <div className="h-8 w-8 rounded-full bg-brand-mediumTeal text-white flex items-center justify-center font-bold">
           AC
         </div>
         <span className="font-semibold text-lg text-brand-darkTeal dark:text-white">AI Coach</span>

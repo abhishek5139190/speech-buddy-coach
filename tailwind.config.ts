@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -68,6 +67,7 @@ export default {
 					beige: '#F2EFE7',
 					teal: '#9ACBD0',
 					darkTeal: '#006A71',
+					mediumTeal: '#48A6A7',
 				}
 			},
 			borderRadius: {
