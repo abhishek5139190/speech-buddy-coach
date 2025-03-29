@@ -1,28 +1,14 @@
 
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
+import EmailForm from '@/components/auth/EmailForm';
+import OtpVerificationForm from '@/components/auth/OtpVerificationForm';
+import { sendOtpEmail, verifyOtpCode } from '@/components/auth/otp-auth-utils';
 
 interface EmailOtpAuthProps {
   onAuthenticated: () => void;
 }
-
-const emailSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
-});
-
-const otpSchema = z.object({
-  otp: z.string().min(6, { message: "Please enter all digits" }),
-});
 
 const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
   const [step, setStep] = useState<'email' | 'otp'>('email');
@@ -30,120 +16,53 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const emailForm = useForm<z.infer<typeof emailSchema>>({
-    resolver: zodResolver(emailSchema),
-    defaultValues: {
-      email: '',
-    },
-  });
-
-  const otpForm = useForm<z.infer<typeof otpSchema>>({
-    resolver: zodResolver(otpSchema),
-    defaultValues: {
-      otp: '',
-    },
-  });
-
-  const handleSendOtp = async (values: z.infer<typeof emailSchema>) => {
+  const handleSendOtp = async (emailAddress: string) => {
     setIsLoading(true);
     setError(null);
     
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: values.email,
-        options: {
-          shouldCreateUser: true,
-        },
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      setEmail(values.email);
+    const result = await sendOtpEmail(emailAddress);
+    
+    if (result.success) {
+      setEmail(emailAddress);
       setStep('otp');
-      toast({
-        title: "Code sent",
-        description: `Check your email (${values.email}) for your login code`,
-      });
-    } catch (error) {
-      console.error("Authentication error:", error);
-      setError("Failed to send verification code. Please try again.");
-      toast({
-        variant: "destructive",
-        title: "Failed to send code",
-        description: "Please try again later",
-      });
-    } finally {
-      setIsLoading(false);
+    } else {
+      setError(result.error || "Failed to send verification code");
     }
+    
+    setIsLoading(false);
   };
 
-  const handleVerifyOtp = async (values: z.infer<typeof otpSchema>) => {
+  const handleVerifyOtp = async (otp: string) => {
     setIsLoading(true);
     setError(null);
     
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token: values.otp,
-        type: 'email',
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      toast({
-        title: "Authentication successful",
-        description: "You have successfully logged in",
-      });
-      
+    const result = await verifyOtpCode(email, otp);
+    
+    if (result.success) {
       onAuthenticated();
-    } catch (error) {
-      console.error("Verification error:", error);
-      setError("Invalid or expired code. Please try again.");
-      toast({
-        variant: "destructive",
-        title: "Verification failed",
-        description: "Invalid or expired code",
-      });
-    } finally {
-      setIsLoading(false);
+    } else {
+      setError(result.error || "Failed to verify code");
     }
+    
+    setIsLoading(false);
   };
 
   const handleResendOtp = async () => {
     setIsLoading(true);
     setError(null);
     
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          shouldCreateUser: true,
-        },
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      toast({
-        title: "Code resent",
-        description: `Check your email (${email}) for your new login code`,
-      });
-    } catch (error) {
-      console.error("Resend error:", error);
-      setError("Failed to resend verification code. Please try again.");
-      toast({
-        variant: "destructive",
-        title: "Failed to resend code",
-        description: "Please try again later",
-      });
-    } finally {
-      setIsLoading(false);
+    const result = await sendOtpEmail(email);
+    
+    if (!result.success) {
+      setError(result.error || "Failed to resend verification code");
     }
+    
+    setIsLoading(false);
+  };
+
+  const handleBackToEmail = () => {
+    setStep('email');
+    setError(null);
   };
 
   return (
@@ -156,113 +75,18 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
       )}
       
       {step === 'email' ? (
-        <Form {...emailForm}>
-          <form onSubmit={emailForm.handleSubmit(handleSendOtp)} className="space-y-4">
-            <FormField
-              control={emailForm.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field} 
-                      type="email" 
-                      placeholder="Enter your email" 
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button 
-              type="submit"
-              className="w-full h-11 md:h-12"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                "Send Login Code"
-              )}
-            </Button>
-          </form>
-        </Form>
+        <EmailForm 
+          onSubmit={handleSendOtp} 
+          isLoading={isLoading} 
+        />
       ) : (
-        <Form {...otpForm}>
-          <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4">
-            <FormField
-              control={otpForm.control}
-              name="otp"
-              render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <FormLabel>Verification Code</FormLabel>
-                  <FormControl>
-                    <InputOTP 
-                      maxLength={6}
-                      value={field.value} 
-                      onChange={field.onChange}
-                      disabled={isLoading}
-                      render={({ slots }) => (
-                        <InputOTPGroup className="gap-2 justify-center">
-                          {slots.map((slot, index) => (
-                            <InputOTPSlot 
-                              key={index} 
-                              {...slot} 
-                              index={index} 
-                              className="h-12 w-12 text-center text-lg" 
-                            />
-                          ))}
-                        </InputOTPGroup>
-                      )}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex flex-col space-y-2">
-              <Button 
-                type="submit" 
-                className="w-full h-11 md:h-12"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  "Verify Code"
-                )}
-              </Button>
-              <div className="flex justify-between gap-2 mt-2">
-                <Button 
-                  variant="ghost" 
-                  type="button" 
-                  onClick={() => {
-                    setStep('email');
-                    otpForm.reset();
-                  }}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  Back to Email
-                </Button>
-                <Button 
-                  variant="outline" 
-                  type="button" 
-                  onClick={handleResendOtp}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  Resend Code
-                </Button>
-              </div>
-              <p className="text-xs text-center text-muted-foreground mt-2">
-                Didn't receive a code? Check your spam folder or try again.
-              </p>
-            </div>
-          </form>
-        </Form>
+        <OtpVerificationForm 
+          onSubmit={handleVerifyOtp}
+          onResendCode={handleResendOtp}
+          onBackToEmail={handleBackToEmail}
+          isLoading={isLoading}
+          email={email}
+        />
       )}
     </div>
   );
