@@ -51,7 +51,6 @@ const OtpVerificationForm: React.FC<OtpVerificationFormProps> = ({
                   maxLength={6}
                   value={field.value} 
                   onChange={field.onChange}
-                  disabled={isLoading}
                   render={({ slots }) => (
                     <InputOTPGroup className="gap-2 justify-center">
                       {slots.map((slot, index) => (

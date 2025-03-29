@@ -74,8 +74,8 @@ const InputOTPSlot = React.forwardRef<
         isActive && "z-10 ring-2 ring-ring ring-offset-background",
         className
       )}
-      data-active={isActive || undefined}
-      data-fake-caret={hasFakeCaret || undefined}
+      data-active={isActive ? "true" : undefined}
+      data-fake-caret={hasFakeCaret ? "true" : undefined}
       {...props}
     >
       {char}
