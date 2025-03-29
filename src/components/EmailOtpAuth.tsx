@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,6 +204,9 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
               >
                 Back to Email
               </Button>
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Didn't receive a code? Check your spam folder or try again.
+              </p>
             </div>
           </form>
         </Form>
