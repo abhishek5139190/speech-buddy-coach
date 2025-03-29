@@ -1,14 +1,14 @@
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 const otpSchema = z.object({
-  otp: z.string().min(6, { message: "Please enter all digits" }),
+  otp: z.string().min(6, { message: "Please enter all 6 digits" }),
 });
 
 interface OtpVerificationFormProps {
@@ -47,22 +47,15 @@ const OtpVerificationForm: React.FC<OtpVerificationFormProps> = ({
             <FormItem className="space-y-2">
               <FormLabel>Verification Code</FormLabel>
               <FormControl>
-                <InputOTP 
+                <Input
+                  placeholder="Enter 6-digit code"
+                  type="text" 
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={6}
-                  value={field.value} 
-                  onChange={field.onChange}
-                  render={({ slots }) => (
-                    <InputOTPGroup className="gap-2 justify-center">
-                      {slots.map((slot, index) => (
-                        <InputOTPSlot 
-                          key={index} 
-                          {...slot} 
-                          index={index} 
-                          className="h-12 w-12 text-center text-lg" 
-                        />
-                      ))}
-                    </InputOTPGroup>
-                  )}
+                  autoComplete="one-time-code"
+                  className="text-center text-lg py-6"
+                  {...field}
                 />
               </FormControl>
               <FormMessage />
