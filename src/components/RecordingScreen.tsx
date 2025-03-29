@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mic, Pause, Play, RefreshCw, Timer, Square } from 'lucide-react';
+import { Mic, Pause, Play, RefreshCw, Timer, Square, AlertTriangle } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
 import { Progress } from "@/components/ui/progress";
@@ -11,7 +11,11 @@ import { supabase } from '@/integrations/supabase/client';
 const MAX_RECORDING_TIME = 150; // 150 seconds recording limit
 const MAX_ALLOWED_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
 
-const RecordingScreen: React.FC = () => {
+interface RecordingScreenProps {
+  isBucketReady?: boolean;
+}
+
+const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false }) => {
   const navigate = useNavigate();
   const [permission, setPermission] = useState<boolean>(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -60,6 +64,13 @@ const RecordingScreen: React.FC = () => {
       if (timerId) clearInterval(timerId);
     };
   }, [recordingStatus, timeLeft]);
+
+  // Effect to check for bucket readiness and clear error if bucket becomes ready
+  useEffect(() => {
+    if (isBucketReady && errorDetails && errorDetails.includes('bucket')) {
+      setErrorDetails(null);
+    }
+  }, [isBucketReady, errorDetails]);
   
   const getMicrophoneAndCameraPermission = async () => {
     try {
@@ -137,11 +148,29 @@ const RecordingScreen: React.FC = () => {
       const { data: buckets, error } = await supabase.storage.listBuckets();
       
       if (error) {
+        console.error("Error listing buckets:", error);
         throw new Error(`Failed to list buckets: ${error.message}`);
       }
       
       const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
-      return !!videoBucket;
+      
+      if (!videoBucket) {
+        // Try to create the bucket
+        console.log("Videos bucket not found, attempting to create it...");
+        const { error: createError } = await supabase.storage.createBucket('videos', {
+          public: true
+        });
+        
+        if (createError) {
+          console.error("Error creating videos bucket:", createError);
+          return false;
+        }
+        
+        console.log("Videos bucket created successfully");
+        return true;
+      }
+      
+      return true;
     } catch (error) {
       console.error("Error checking video bucket:", error);
       return false;
@@ -173,7 +202,7 @@ const RecordingScreen: React.FC = () => {
       // First check if videos bucket exists
       const bucketExists = await checkVideoBucket();
       if (!bucketExists) {
-        throw new Error("Video storage bucket ('videos') is not configured properly. Please contact support.");
+        throw new Error("Video storage bucket ('videos') is not configured properly. Please try refreshing the page.");
       }
       
       const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
@@ -280,6 +309,16 @@ const RecordingScreen: React.FC = () => {
   
   return (
     <div className="w-full max-w-3xl mx-auto p-4 animate-slide-up">
+      {!isBucketReady && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 flex items-start">
+          <AlertTriangle className="mr-2 h-5 w-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">Storage Setup in Progress</p>
+            <p className="text-sm">The video storage system is being configured. You may need to refresh the page in a moment.</p>
+          </div>
+        </div>
+      )}
+      
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="relative">
@@ -326,7 +365,7 @@ const RecordingScreen: React.FC = () => {
               {recordingStatus === 'inactive' && audioChunks.length === 0 && (
                 <Button
                   onClick={startRecording}
-                  disabled={!permission}
+                  disabled={!permission || !isBucketReady}
                   variant="default"
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white"
                 >
@@ -371,7 +410,7 @@ const RecordingScreen: React.FC = () => {
                 <Button
                   onClick={processRecording}
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white space-x-2"
-                  disabled={isProcessing}
+                  disabled={isProcessing || !isBucketReady}
                 >
                   {isProcessing ? (
                     <>

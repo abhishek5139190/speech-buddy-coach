@@ -10,11 +10,13 @@ const Record: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [bucketCreated, setBucketCreated] = useState(false);
 
   useEffect(() => {
-    // Check authentication status on mount
-    const checkAuth = async () => {
+    // Check authentication status and setup storage on mount
+    const initialize = async () => {
       try {
+        // Check authentication
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -32,32 +34,58 @@ const Record: React.FC = () => {
           return;
         }
         
-        // Also check if videos bucket exists in storage
+        // Check if videos bucket exists in storage
         const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
         
         if (bucketsError) {
           console.error("Error fetching storage buckets:", bucketsError);
-        } else {
-          const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
-          if (!videoBucket) {
-            console.warn("Videos storage bucket does not exist");
+          throw new Error(`Storage error: ${bucketsError.message}`);
+        }
+        
+        const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
+        
+        if (!videoBucket) {
+          console.log("Videos storage bucket does not exist, creating it now...");
+          
+          // Create the videos bucket
+          const { error: createBucketError } = await supabase.storage.createBucket('videos', {
+            public: true
+          });
+          
+          if (createBucketError) {
+            console.error("Error creating videos bucket:", createBucketError);
+            throw new Error(`Failed to create storage bucket: ${createBucketError.message}`);
           }
+          
+          console.log("Videos bucket created successfully");
+          setBucketCreated(true);
+        } else {
+          console.log("Videos bucket exists:", videoBucket.name);
+          setBucketCreated(true);
         }
         
         setIsLoading(false);
       } catch (error) {
-        console.error("Authentication error:", error);
-        setAuthError("There was a problem verifying your login status");
+        console.error("Initialization error:", error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        
+        setAuthError(errorMessage);
         toast({
           variant: "destructive",
-          title: "Authentication error",
-          description: "There was a problem verifying your login status",
+          title: "Setup error",
+          description: errorMessage,
         });
-        navigate('/');
+        
+        // Don't navigate away on bucket errors, just show the error
+        if (errorMessage.includes("Please sign in")) {
+          navigate('/');
+        } else {
+          setIsLoading(false);
+        }
       }
     };
     
-    checkAuth();
+    initialize();
   }, [navigate]);
 
   const handleLogout = async () => {
@@ -95,7 +123,7 @@ const Record: React.FC = () => {
       {authError && (
         <div className="w-full max-w-3xl mx-auto mt-6 px-4">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-            <p className="font-medium">Authentication Error:</p>
+            <p className="font-medium">Setup Error:</p>
             <p>{authError}</p>
           </div>
         </div>
@@ -109,7 +137,7 @@ const Record: React.FC = () => {
           </p>
         </div>
         
-        <RecordingScreen />
+        <RecordingScreen isBucketReady={bucketCreated} />
       </main>
     </div>
   );

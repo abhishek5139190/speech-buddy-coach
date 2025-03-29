@@ -47,6 +47,21 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
+    // Check if the videos bucket exists
+    console.log("Checking if videos bucket exists...");
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error("Error listing buckets:", bucketsError);
+      throw new Error(`Failed to list storage buckets: ${bucketsError.message}`);
+    }
+    
+    const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
+    if (!videoBucket) {
+      console.error("Videos bucket does not exist");
+      throw new Error("Videos storage is not properly configured");
+    }
+    
     // Fetch the video content
     console.log("Fetching video content...");
     const videoResponse = await fetch(videoUrl);
