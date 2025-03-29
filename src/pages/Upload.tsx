@@ -36,10 +36,10 @@ const Upload: React.FC = () => {
         userName={localStorage.getItem('userName') || ''}
       />
       
-      <main className="flex-1 flex flex-col items-center p-6">
-        <div className="w-full max-w-4xl mb-8">
-          <h1 className="text-2xl font-bold text-brand-blue text-center">Upload Media</h1>
-          <p className="text-center text-muted-foreground mt-2">
+      <main className="flex-1 flex flex-col items-center p-4 md:p-6">
+        <div className="w-full max-w-4xl mb-6 md:mb-8">
+          <h1 className="text-xl md:text-2xl font-bold text-brand-blue text-center">Upload Media</h1>
+          <p className="text-center text-muted-foreground mt-2 text-sm md:text-base">
             Upload audio or video files for AI communication analysis
           </p>
         </div>

@@ -40,9 +40,9 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto animate-fade-in">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
+    <Card className="w-full max-w-md mx-auto animate-fade-in shadow-md">
+      <CardHeader className="space-y-1 pb-4">
+        <CardTitle className="text-xl md:text-2xl font-bold">Sign in</CardTitle>
         <CardDescription>
           Sign in to access AI communication coaching
         </CardDescription>
@@ -52,7 +52,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
           variant="outline" 
           onClick={handleGoogleLogin}
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2"
+          className="w-full flex items-center justify-center gap-2 h-11 md:h-12"
         >
           {isLoading ? (
             <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -77,10 +77,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
               <path d="M1 1h22v22H1z" fill="none" />
             </svg>
           )}
-          <span>{isLoading ? "Signing in..." : "Continue with Google"}</span>
+          <span className="text-base">{isLoading ? "Signing in..." : "Continue with Google"}</span>
         </Button>
       </CardContent>
-      <CardFooter className="flex flex-col items-center justify-center text-xs text-muted-foreground">
+      <CardFooter className="flex flex-col items-center justify-center text-xs text-muted-foreground pt-0">
         <p>By continuing, you agree to our Terms of Service and Privacy Policy</p>
       </CardFooter>
     </Card>

@@ -41,22 +41,22 @@ const Index: React.FC = () => {
       <main className="flex-1 flex flex-col">
         {isAuthenticated ? (
           // Home screen with options
-          <div className="flex-1 flex flex-col items-center justify-center p-6">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-brand-blue mb-2">AI Communication Coach</h1>
-              <p className="text-lg text-muted-foreground">Enhance your speaking skills with AI-powered analysis</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6">
+            <div className="text-center mb-6 md:mb-8">
+              <h1 className="text-2xl md:text-3xl font-bold text-brand-blue mb-2">AI Communication Coach</h1>
+              <p className="text-base md:text-lg text-muted-foreground">Enhance your speaking skills with AI-powered analysis</p>
             </div>
             <HomeOptions />
           </div>
         ) : (
           // Landing page with authentication
           <div className="flex-1 hero-gradient">
-            <div className="container mx-auto px-4 py-12 flex flex-col md:flex-row items-center justify-between gap-12">
-              <div className="md:w-1/2 space-y-6 text-center md:text-left">
-                <h1 className="text-4xl md:text-5xl font-bold text-brand-blue">
+            <div className="container mx-auto px-4 py-8 md:py-12 flex flex-col items-center md:flex-row md:items-center md:justify-between gap-8 md:gap-12">
+              <div className="w-full md:w-1/2 space-y-4 md:space-y-6 text-center md:text-left">
+                <h1 className="text-3xl md:text-5xl font-bold text-brand-blue">
                   Improve Your Communication Skills
                 </h1>
-                <p className="text-xl text-muted-foreground">
+                <p className="text-lg md:text-xl text-muted-foreground">
                   Get instant AI-powered feedback on your speeches, interviews, and presentations.
                 </p>
                 <ul className="space-y-2 text-left mx-auto md:mx-0 max-w-md">
@@ -75,7 +75,7 @@ const Index: React.FC = () => {
                 </ul>
               </div>
               
-              <div className="md:w-1/2 max-w-md mx-auto">
+              <div className="w-full md:w-1/2 max-w-md mx-auto">
                 <Auth onAuthenticated={handleAuthenticated} />
               </div>
             </div>
@@ -83,7 +83,7 @@ const Index: React.FC = () => {
         )}
       </main>
       
-      <footer className="py-6 border-t bg-muted/40">
+      <footer className="py-4 md:py-6 border-t bg-muted/40">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>© 2023 AI Communication Coach. All rights reserved.</p>
         </div>
