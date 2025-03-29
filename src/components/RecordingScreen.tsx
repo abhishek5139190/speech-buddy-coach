@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,10 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const MAX_RECORDING_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
 const MAX_ALLOWED_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
+
+// Eleven Labs API key - This should ideally be stored securely in your environment variables
+// For a production app, consider using a backend service to handle API requests
+const ELEVEN_LABS_API_KEY = "YOUR_ELEVEN_LABS_API_KEY"; // Replace with your actual API key or prompt the user to provide it
 
 interface RecordingScreenProps {
   isBucketReady?: boolean;
@@ -246,26 +251,48 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
         description: "Your video is being transcribed...",
       });
       
-      const base64Data = await blobToBase64(audioBlob);
-      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-video', {
-        body: { 
-          userId,
-          videoData: base64Data
-        }
+      // Direct API call to Eleven Labs instead of using Edge Function
+      const formData = new FormData();
+      formData.append("model_id", "scribe_v1"); // Using the correct model ID
+      formData.append("file", audioBlob, "recording.webm");
+      
+      console.log("Making direct request to Eleven Labs API...");
+      const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVEN_LABS_API_KEY,
+        },
+        body: formData,
       });
       
-      if (transcriptionError) {
-        console.error("Transcription error:", transcriptionError);
-        throw new Error(`Transcription error: ${transcriptionError.message}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Eleven Labs API error:", errorText);
+        throw new Error(`Eleven Labs API error: ${response.statusText}`);
       }
       
-      if (!transcriptionData || !transcriptionData.success) {
-        const errorMessage = transcriptionData?.error || "Unknown transcription error";
-        console.error("Transcription failed:", errorMessage);
-        throw new Error(`Transcription failed: ${errorMessage}`);
+      const transcriptionResult = await response.json();
+      console.log("Transcription result received:", transcriptionResult);
+      
+      const transcript = transcriptionResult.text || "No transcript available";
+      
+      console.log("Transcript received:", transcript);
+      
+      // Update the video_analysis record with the transcript
+      const { error } = await supabase
+        .from('video_analysis')
+        .update({ transcript })
+        .eq('user_id', userId)
+        .eq('video_path', 'local')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.error("Error updating transcript:", error);
+        throw new Error(`Failed to update transcript: ${error.message}`);
       }
       
-      console.log("Transcription result:", transcriptionData);
+      console.log("Transcription successfully saved to database");
       
       toast({
         title: "Processing complete",
