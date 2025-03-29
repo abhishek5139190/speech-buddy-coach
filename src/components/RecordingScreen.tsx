@@ -193,11 +193,12 @@ const RecordingScreen: React.FC = () => {
           
           <div className="p-6 flex flex-col space-y-4">
             <div className="flex items-center justify-center space-x-4">
-              {recordingStatus === 'inactive' && !audioChunks.length && (
+              {recordingStatus === 'inactive' && audioChunks.length === 0 && (
                 <Button
                   onClick={startRecording}
                   disabled={!permission}
-                  className="bg-brand-blue hover:bg-brand-blue/90 text-white"
+                  variant="default"
+                  className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white"
                 >
                   <Mic className="mr-2 h-5 w-5" />
                   Start Recording
@@ -238,7 +239,7 @@ const RecordingScreen: React.FC = () => {
                 
                 <Button
                   onClick={processRecording}
-                  className="bg-brand-blue hover:bg-brand-blue/90 text-white space-x-2"
+                  className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white space-x-2"
                 >
                   <span>Process</span>
                 </Button>
