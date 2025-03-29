@@ -35,9 +35,8 @@ const InputOTPSlot = React.forwardRef<
 >(({ index, className, ...props }, ref) => {
   const inputOTPContext = React.useContext(OTPInputContext)
   
-  // Check if context and slots exist before accessing them
+  // Return a default styled slot if no context is available
   if (!inputOTPContext || !inputOTPContext.slots) {
-    // Return a default empty slot if the context or data is not available
     return (
       <div
         ref={ref}
@@ -50,6 +49,7 @@ const InputOTPSlot = React.forwardRef<
     )
   }
   
+  // Safely access the slot for this index
   const slot = inputOTPContext.slots[index]
   if (!slot) {
     return (

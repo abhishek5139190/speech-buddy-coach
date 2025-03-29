@@ -113,6 +113,39 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
     }
   };
 
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Code resent",
+        description: `Check your email (${email}) for your new login code`,
+      });
+    } catch (error) {
+      console.error("Resend error:", error);
+      setError("Failed to resend verification code. Please try again.");
+      toast({
+        variant: "destructive",
+        title: "Failed to resend code",
+        description: "Please try again later",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       {error && (
@@ -167,12 +200,19 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
                   <FormLabel>Verification Code</FormLabel>
                   <FormControl>
                     <InputOTP 
-                      maxLength={6} 
-                      {...field} 
+                      maxLength={6}
+                      value={field.value} 
+                      onChange={field.onChange}
+                      disabled={isLoading}
                       render={({ slots }) => (
                         <InputOTPGroup className="gap-2 justify-center">
                           {slots.map((slot, index) => (
-                            <InputOTPSlot key={index} {...slot} index={index} className="h-12 w-12 text-center text-lg" />
+                            <InputOTPSlot 
+                              key={index} 
+                              {...slot} 
+                              index={index} 
+                              className="h-12 w-12 text-center text-lg" 
+                            />
                           ))}
                         </InputOTPGroup>
                       )}
@@ -194,17 +234,29 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
                   "Verify Code"
                 )}
               </Button>
-              <Button 
-                variant="ghost" 
-                type="button" 
-                onClick={() => {
-                  setStep('email');
-                  otpForm.reset();
-                }}
-                disabled={isLoading}
-              >
-                Back to Email
-              </Button>
+              <div className="flex justify-between gap-2 mt-2">
+                <Button 
+                  variant="ghost" 
+                  type="button" 
+                  onClick={() => {
+                    setStep('email');
+                    otpForm.reset();
+                  }}
+                  disabled={isLoading}
+                  className="flex-1"
+                >
+                  Back to Email
+                </Button>
+                <Button 
+                  variant="outline" 
+                  type="button" 
+                  onClick={handleResendOtp}
+                  disabled={isLoading}
+                  className="flex-1"
+                >
+                  Resend Code
+                </Button>
+              </div>
               <p className="text-xs text-center text-muted-foreground mt-2">
                 Didn't receive a code? Check your spam folder or try again.
               </p>
