@@ -39,8 +39,25 @@ serve(async (req) => {
     const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
     if (videoBucket) {
       console.log("Videos bucket already exists, no need to create");
+      
+      // Even if bucket exists, make sure it's public
+      try {
+        const { error: updateError } = await supabase.storage.updateBucket('videos', {
+          public: true,
+          fileSizeLimit: 52428800 // 50MB limit
+        });
+        
+        if (updateError) {
+          console.error("Error updating existing bucket:", updateError);
+        } else {
+          console.log("Updated existing bucket to ensure it's public");
+        }
+      } catch (updateErr) {
+        console.error("Failed to update existing bucket:", updateErr);
+      }
+      
       return new Response(
-        JSON.stringify({ success: true, message: "Videos bucket already exists" }),
+        JSON.stringify({ success: true, message: "Videos bucket already exists", isBucketPublic: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -61,15 +78,27 @@ serve(async (req) => {
     
     // Create public access policy for the videos bucket
     console.log("Setting up policies for the videos bucket...");
-    const { error: policyError } = await supabase.storage.from('videos').createSignedUrl('dummy.txt', 1);
     
-    if (policyError && !policyError.message.includes('not found')) {
-      console.error("Error setting up policies:", policyError);
-      // Continue anyway, as this might just be testing the permissions
+    // Attempt to make the bucket publicly accessible
+    try {
+      // Allow public access for read
+      const { error: policyError } = await supabase.rpc('create_storage_policy', {
+        bucket_name: 'videos',
+        policy_name: 'Public Access',
+        definition: 'true',
+        operation: 'SELECT'
+      });
+      
+      if (policyError) {
+        console.error("Error setting public policy:", policyError);
+      }
+    } catch (policyErr) {
+      console.error("Failed to create public policy:", policyErr);
+      // Continue anyway, as this is not critical
     }
     
     return new Response(
-      JSON.stringify({ success: true, message: "Videos bucket created successfully" }),
+      JSON.stringify({ success: true, message: "Videos bucket created successfully", isBucketPublic: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

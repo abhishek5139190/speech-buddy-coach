@@ -61,11 +61,14 @@ const Record: React.FC = () => {
         
         console.log("Edge function response:", response);
         
-        if (response.data.success) {
+        if (response.data && response.data.success) {
           console.log("Videos bucket setup response:", response.data.message);
           setBucketCreated(true);
         } else {
-          throw new Error(`Failed to configure video storage: ${response.data.error || 'Unknown error'}`);
+          const errorMsg = response.data && response.data.error 
+            ? response.data.error 
+            : 'Unknown error configuring video storage';
+          throw new Error(`Failed to configure video storage: ${errorMsg}`);
         }
         
         setIsLoading(false);

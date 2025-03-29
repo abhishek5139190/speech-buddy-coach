@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
 import { Progress } from "@/components/ui/progress";
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const MAX_RECORDING_TIME = 150; // 150 seconds recording limit
 const MAX_ALLOWED_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
@@ -24,8 +25,33 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
   const [progress, setProgress] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [bucketVerified, setBucketVerified] = useState<boolean>(false);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  
+  useEffect(() => {
+    if (isBucketReady) {
+      verifyBucketAccess();
+    }
+  }, [isBucketReady]);
+  
+  const verifyBucketAccess = async () => {
+    try {
+      const bucketExists = await checkVideoBucket();
+      
+      if (bucketExists) {
+        setBucketVerified(true);
+        setErrorDetails(null);
+      } else {
+        setErrorDetails("Video storage is not properly configured. The bucket exists but cannot be accessed.");
+        setBucketVerified(false);
+      }
+    } catch (error) {
+      console.error("Bucket verification error:", error);
+      setErrorDetails(`Storage verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setBucketVerified(false);
+    }
+  };
   
   useEffect(() => {
     getMicrophoneAndCameraPermission();
@@ -62,7 +88,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       if (timerId) clearInterval(timerId);
     };
   }, [recordingStatus, timeLeft]);
-
+  
   useEffect(() => {
     if (isBucketReady && errorDetails && errorDetails.includes('bucket')) {
       setErrorDetails(null);
@@ -148,7 +174,25 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       }
       
       const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
-      return !!videoBucket;
+      if (!videoBucket) {
+        return false;
+      }
+      
+      try {
+        const { data: files, error: listError } = await supabase.storage
+          .from('videos')
+          .list();
+          
+        if (listError && !listError.message.includes('empty')) {
+          console.error("Error accessing videos bucket:", listError);
+          return false;
+        }
+        
+        return true;
+      } catch (accessError) {
+        console.error("Error verifying access to videos bucket:", accessError);
+        return false;
+      }
     } catch (error) {
       console.error("Error checking video bucket:", error);
       return false;
@@ -176,8 +220,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       const userId = session.user.id;
       
-      const bucketExists = await checkVideoBucket();
-      if (!bucketExists) {
+      const bucketAccessible = await checkVideoBucket();
+      if (!bucketAccessible) {
         throw new Error("Video storage bucket ('videos') is not available. Please refresh the page and try again.");
       }
       
@@ -273,16 +317,59 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
     return `${mins}:${secs < 10 ? '0' + secs : secs}`;
   };
   
+  const retryBucketSetup = async () => {
+    try {
+      toast({
+        title: "Retrying setup",
+        description: "Attempting to configure storage again...",
+      });
+      
+      const response = await supabase.functions.invoke('create-videos-bucket');
+      
+      if (response.error) {
+        throw new Error(`Edge function error: ${response.error.message}`);
+      }
+      
+      if (response.data.success) {
+        toast({
+          title: "Setup successful",
+          description: "Storage configured successfully. You can now record videos.",
+        });
+        
+        await verifyBucketAccess();
+      } else {
+        throw new Error(response.data.error || "Unknown error during setup");
+      }
+    } catch (error) {
+      console.error("Retry error:", error);
+      toast({
+        variant: "destructive",
+        title: "Setup failed",
+        description: error instanceof Error ? error.message : "Failed to configure storage",
+      });
+    }
+  };
+  
   return (
     <div className="w-full max-w-3xl mx-auto p-4 animate-slide-up">
-      {!isBucketReady && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 flex items-start">
-          <AlertTriangle className="mr-2 h-5 w-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium">Storage Setup in Progress</p>
-            <p className="text-sm">The video storage system is being configured. You may need to refresh the page in a moment.</p>
-          </div>
-        </div>
+      {(!isBucketReady || !bucketVerified) && (
+        <Alert variant="info" className="mb-4">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle>Storage Setup Required</AlertTitle>
+          <AlertDescription>
+            The video storage system needs to be configured.
+            {!bucketVerified && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={retryBucketSetup} 
+                className="mt-2"
+              >
+                Retry Setup
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
       )}
       
       <Card className="overflow-hidden">
@@ -330,7 +417,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
               {recordingStatus === 'inactive' && audioChunks.length === 0 && (
                 <Button
                   onClick={startRecording}
-                  disabled={!permission || !isBucketReady}
+                  disabled={!permission || !bucketVerified}
                   variant="default"
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white"
                 >
@@ -375,7 +462,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
                 <Button
                   onClick={processRecording}
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white space-x-2"
-                  disabled={isProcessing || !isBucketReady}
+                  disabled={isProcessing || !bucketVerified}
                 >
                   {isProcessing ? (
                     <>
