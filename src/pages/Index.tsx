@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Auth from '@/components/Auth';
 import HomeOptions from '@/components/HomeOptions';
@@ -18,10 +17,8 @@ const Index: React.FC = () => {
       if (session) {
         setIsAuthenticated(true);
         setSession(session);
-        // Extract user name from session
-        const name = session.user?.user_metadata?.full_name || 
-                    session.user?.user_metadata?.name || 
-                    'User';
+        // Extract user name from session or use email as fallback
+        const name = session.user?.email?.split('@')[0] || 'User';
         setUserName(name);
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('userName', name);
@@ -39,9 +36,7 @@ const Index: React.FC = () => {
       if (session) {
         setIsAuthenticated(true);
         setSession(session);
-        const name = session.user?.user_metadata?.full_name || 
-                   session.user?.user_metadata?.name || 
-                   'User';
+        const name = session.user?.email?.split('@')[0] || 'User';
         setUserName(name);
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('userName', name);
@@ -108,4 +103,5 @@ const Index: React.FC = () => {
       </footer>
     </div>;
 };
+
 export default Index;

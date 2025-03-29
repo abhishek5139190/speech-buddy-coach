@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import AnalysisScreen from '@/components/AnalysisScreen';
 import { toast } from "@/components/ui/use-toast";
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 const Analysis: React.FC = () => {
   const navigate = useNavigate();
@@ -19,19 +21,6 @@ const Analysis: React.FC = () => {
         description: "Please sign in to access this page",
       });
       navigate('/');
-      return;
-    }
-    
-    // Check if there's a recording to analyze
-    const recordingUrl = localStorage.getItem('recordingUrl');
-    
-    if (!recordingUrl) {
-      toast({
-        variant: "destructive",
-        title: "No recording found",
-        description: "Please record or upload media first",
-      });
-      navigate('/');
     }
   }, [navigate]);
 
@@ -39,6 +28,10 @@ const Analysis: React.FC = () => {
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userName');
     navigate('/');
+  };
+
+  const handleBack = () => {
+    navigate(-1); // This navigates back to the previous page in history
   };
 
   return (
@@ -49,11 +42,22 @@ const Analysis: React.FC = () => {
         userName={localStorage.getItem('userName') || ''}
       />
       
-      <main className="flex-1 flex flex-col items-center p-6">
-        <div className="w-full max-w-4xl mb-8">
-          <h1 className="text-2xl font-bold text-brand-blue text-center">Speech Analysis</h1>
-          <p className="text-center text-muted-foreground mt-2">
-            Review your recording and receive AI-powered communication feedback
+      <main className="flex-1 flex flex-col items-center p-4 md:p-6">
+        <div className="w-full max-w-4xl mb-6 md:mb-8">
+          <div className="flex items-center mb-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleBack} 
+              className="mr-2"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl md:text-2xl font-bold text-brand-blue">Analysis Results</h1>
+          </div>
+          <p className="text-center text-muted-foreground mt-2 text-sm md:text-base">
+            Review your communication analysis and feedback
           </p>
         </div>
         
