@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import UploadScreen from '@/components/UploadScreen';
 import { toast } from "@/components/ui/use-toast";
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 const Upload: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +30,10 @@ const Upload: React.FC = () => {
     navigate('/');
   };
 
+  const handleBack = () => {
+    navigate(-1); // This navigates back to the previous page in history
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <NavBar 
@@ -38,7 +44,18 @@ const Upload: React.FC = () => {
       
       <main className="flex-1 flex flex-col items-center p-4 md:p-6">
         <div className="w-full max-w-4xl mb-6 md:mb-8">
-          <h1 className="text-xl md:text-2xl font-bold text-brand-blue text-center">Upload Media</h1>
+          <div className="flex items-center mb-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleBack} 
+              className="mr-2"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl md:text-2xl font-bold text-brand-blue">Upload Media</h1>
+          </div>
           <p className="text-center text-muted-foreground mt-2 text-sm md:text-base">
             Upload audio or video files for AI communication analysis
           </p>
