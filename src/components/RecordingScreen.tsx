@@ -6,8 +6,10 @@ import { Mic, Pause, Play, RefreshCw, Timer, Square } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
 import { Progress } from "@/components/ui/progress";
+import { supabase } from '@/integrations/supabase/client';
 
 const MAX_RECORDING_TIME = 150; // 150 seconds recording limit
+const MAX_ALLOWED_TIME = 150; // 2 minutes and 30 seconds = 150 seconds
 
 const RecordingScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ const RecordingScreen: React.FC = () => {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(MAX_RECORDING_TIME);
   const [progress, setProgress] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -124,7 +127,7 @@ const RecordingScreen: React.FC = () => {
     setRecordingStatus('inactive');
   };
   
-  const processRecording = () => {
+  const processRecording = async () => {
     if (audioChunks.length === 0) {
       toast({
         variant: "destructive",
@@ -134,18 +137,95 @@ const RecordingScreen: React.FC = () => {
       return;
     }
     
-    const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
-    const audioUrl = URL.createObjectURL(audioBlob);
+    setIsProcessing(true);
     
-    // In a real app, you'd upload or process the blob here
-    localStorage.setItem('recordingUrl', audioUrl);
-    
-    toast({
-      title: "Processing recording",
-      description: "Your recording is being processed...",
-    });
-    
-    navigate('/analysis');
+    try {
+      const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Save to localStorage for immediate preview
+      localStorage.setItem('recordingUrl', audioUrl);
+
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Not authenticated");
+      }
+      
+      const userId = session.user.id;
+      
+      // Create a unique filename using UUID
+      const filename = `${userId}/${Date.now()}.webm`;
+      
+      // Upload to Supabase Storage
+      toast({
+        title: "Uploading video",
+        description: "Saving your recording to the cloud...",
+      });
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(filename, audioBlob, {
+          contentType: 'video/webm',
+          cacheControl: '3600'
+        });
+      
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+      
+      // Get the public URL
+      const { data: publicURLData } = supabase.storage
+        .from('videos')
+        .getPublicUrl(filename);
+      
+      const videoUrl = publicURLData.publicUrl;
+      
+      // Save metadata to the database
+      const { data: videoAnalysis, error: dbError } = await supabase
+        .from('video_analysis')
+        .insert({
+          user_id: userId,
+          video_path: videoUrl
+        })
+        .select()
+        .single();
+      
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
+      
+      // Start transcription process
+      toast({
+        title: "Processing transcription",
+        description: "Your video is being processed for transcription...",
+      });
+      
+      // Call edge function to start transcription
+      await supabase.functions.invoke('transcribe-video', {
+        body: { 
+          videoUrl,
+          userId
+        }
+      });
+      
+      toast({
+        title: "Processing complete",
+        description: "Your recording has been saved and transcription is in progress.",
+      });
+      
+      // Navigate to analysis page
+      navigate('/analysis');
+    } catch (error) {
+      console.error("Error processing recording:", error);
+      toast({
+        variant: "destructive",
+        title: "Processing failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Format time as MM:SS
@@ -232,6 +312,7 @@ const RecordingScreen: React.FC = () => {
                   onClick={resetRecording}
                   variant="outline"
                   className="space-x-2"
+                  disabled={isProcessing}
                 >
                   <RefreshCw size={16} />
                   <span>Redo</span>
@@ -240,8 +321,16 @@ const RecordingScreen: React.FC = () => {
                 <Button
                   onClick={processRecording}
                   className="bg-brand-darkTeal hover:bg-brand-darkTeal/90 text-white space-x-2"
+                  disabled={isProcessing}
                 >
-                  <span>Process</span>
+                  {isProcessing ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <span>Process</span>
+                  )}
                 </Button>
               </div>
             )}

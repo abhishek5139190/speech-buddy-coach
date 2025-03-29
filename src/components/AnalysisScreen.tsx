@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Play, Pause, Volume2, VolumeX, MessageSquare, CheckCircle, XCircle, Info, Timer } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 
 interface FeedbackItem {
   category: string;
@@ -23,6 +24,8 @@ const AnalysisScreen: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
+  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [videoId, setVideoId] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
   
   useEffect(() => {
@@ -31,6 +34,7 @@ const AnalysisScreen: React.FC = () => {
     
     if (recordingUrl && videoRef.current) {
       videoRef.current.src = recordingUrl;
+      setVideoUrl(recordingUrl);
       
       // Add event listener for loadedmetadata to get video duration
       videoRef.current.addEventListener('loadedmetadata', () => {
@@ -49,6 +53,35 @@ const AnalysisScreen: React.FC = () => {
         }
       });
     }
+
+    // Fetch the most recent video analysis record for this user
+    const fetchVideoAnalysis = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const { data, error } = await supabase
+          .from('video_analysis')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.error("Error fetching video analysis:", error);
+        } else if (data) {
+          setVideoId(data.id);
+          if (data.transcript) {
+            setTranscript(data.transcript);
+          }
+        }
+      } catch (error) {
+        console.error("Error in fetchVideoAnalysis:", error);
+      }
+    };
+
+    fetchVideoAnalysis();
     
     return () => {
       if (recordingUrl) {
@@ -62,6 +95,36 @@ const AnalysisScreen: React.FC = () => {
       }
     };
   }, []);
+  
+  // Set up polling for transcript if it's not available
+  useEffect(() => {
+    if (!transcript && videoId) {
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data, error } = await supabase
+            .from('video_analysis')
+            .select('transcript')
+            .eq('id', videoId)
+            .single();
+            
+          if (error) {
+            console.error("Error polling for transcript:", error);
+          } else if (data && data.transcript) {
+            setTranscript(data.transcript);
+            clearInterval(pollInterval);
+            toast({
+              title: "Transcript Ready",
+              description: "Your video transcript has been processed",
+            });
+          }
+        } catch (error) {
+          console.error("Error in transcript polling:", error);
+        }
+      }, 5000); // Poll every 5 seconds
+      
+      return () => clearInterval(pollInterval);
+    }
+  }, [transcript, videoId]);
   
   const togglePlayPause = () => {
     if (videoRef.current) {
@@ -84,49 +147,60 @@ const AnalysisScreen: React.FC = () => {
   const analyzeRecording = () => {
     setIsAnalyzing(true);
     
-    // Simulate API call to transcript and analysis services
+    // If we already have a transcript, use it
+    if (transcript) {
+      generateFeedback(transcript);
+      return;
+    }
+    
+    // Otherwise, generate a mock transcript
     setTimeout(() => {
       // Mock transcript
-      setTranscript(
-        "Hello, my name is... um... John and I'm here to talk about our new product. It's really, you know, amazing and has tons of features that I think... uh... you'll really like. So, basically what it does is... it helps you communicate better by analyzing your speech patterns and giving feedback."
-      );
+      const mockTranscript = 
+        "Hello, my name is... um... John and I'm here to talk about our new product. It's really, you know, amazing and has tons of features that I think... uh... you'll really like. So, basically what it does is... it helps you communicate better by analyzing your speech patterns and giving feedback.";
       
-      // Mock feedback
-      setFeedback([
-        {
-          category: "Filler Words",
-          positive: false,
-          text: "Used 'um' and 'uh' 3 times. Try to eliminate these filler words for clearer delivery."
-        },
-        {
-          category: "Pace",
-          positive: true,
-          text: "Good speaking pace at 145 words per minute, which is in the ideal range for comprehension."
-        },
-        {
-          category: "Pauses",
-          positive: false,
-          text: "Several unintentional pauses detected. Practice using deliberate pauses to emphasize key points."
-        },
-        {
-          category: "Grammar",
-          positive: true,
-          text: "No significant grammar issues detected."
-        },
-        {
-          category: "Body Language",
-          positive: false,
-          text: "Limited eye contact with camera. Try to look directly at the camera more consistently."
-        }
-      ]);
-      
-      setIsAnalyzing(false);
-      
-      toast({
-        title: "Analysis Complete",
-        description: "Your speech analysis is ready to view",
-      });
+      setTranscript(mockTranscript);
+      generateFeedback(mockTranscript);
     }, 3000);
+  };
+  
+  const generateFeedback = (transcriptText: string) => {
+    // Mock feedback generation based on transcript
+    const mockFeedback = [
+      {
+        category: "Filler Words",
+        positive: false,
+        text: "Used 'um' and 'uh' 3 times. Try to eliminate these filler words for clearer delivery."
+      },
+      {
+        category: "Pace",
+        positive: true,
+        text: "Good speaking pace at 145 words per minute, which is in the ideal range for comprehension."
+      },
+      {
+        category: "Pauses",
+        positive: false,
+        text: "Several unintentional pauses detected. Practice using deliberate pauses to emphasize key points."
+      },
+      {
+        category: "Grammar",
+        positive: true,
+        text: "No significant grammar issues detected."
+      },
+      {
+        category: "Body Language",
+        positive: false,
+        text: "Limited eye contact with camera. Try to look directly at the camera more consistently."
+      }
+    ];
+    
+    setFeedback(mockFeedback);
+    setIsAnalyzing(false);
+    
+    toast({
+      title: "Analysis Complete",
+      description: "Your speech analysis is ready to view",
+    });
   };
   
   // Format time as MM:SS
@@ -241,8 +315,8 @@ const AnalysisScreen: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-10 text-muted-foreground">
-                <p>No transcript generated yet</p>
-                <p className="text-xs mt-2">Click 'Analyze' to generate a transcript</p>
+                <p>Transcript is being generated...</p>
+                <p className="text-xs mt-2">This may take a few minutes</p>
               </div>
             )}
           </CardContent>
@@ -275,8 +349,10 @@ const AnalysisScreen: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-10 text-muted-foreground">
-                <p>No analysis available yet</p>
-                <p className="text-xs mt-2">Click 'Analyze' to get feedback</p>
+                <p>{transcript ? "Ready to analyze" : "Waiting for transcript"}</p>
+                <p className="text-xs mt-2">
+                  {transcript ? "Click 'Analyze' to get feedback" : "Transcript is being generated..."}
+                </p>
               </div>
             )}
           </CardContent>
@@ -286,7 +362,7 @@ const AnalysisScreen: React.FC = () => {
       <div className="mt-6 flex justify-center">
         <Button
           onClick={analyzeRecording}
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || !transcript}
           className="bg-brand-blue hover:bg-brand-blue/90 text-white"
         >
           {isAnalyzing ? (
