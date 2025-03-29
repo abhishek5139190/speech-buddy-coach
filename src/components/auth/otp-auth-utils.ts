@@ -8,6 +8,8 @@ export const sendOtpEmail = async (email: string): Promise<{ success: boolean; e
       email,
       options: {
         shouldCreateUser: true,
+        // Ensure persistent session
+        emailRedirectTo: window.location.origin,
       },
     });
     
@@ -47,6 +49,11 @@ export const verifyOtpCode = async (email: string, otp: string): Promise<{ succe
     
     if (error) {
       throw error;
+    }
+    
+    // Store session data for persistence
+    if (data.session) {
+      localStorage.setItem('supabase.auth.token', JSON.stringify(data.session));
     }
     
     toast({

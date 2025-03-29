@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Auth from '@/components/Auth';
 import HomeOptions from '@/components/HomeOptions';
@@ -11,6 +12,15 @@ const Index: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
+    // Check for existing session from localStorage first for immediate UI update
+    const storedAuth = localStorage.getItem('isAuthenticated') === 'true';
+    const storedName = localStorage.getItem('userName') || '';
+    
+    if (storedAuth) {
+      setIsAuthenticated(true);
+      setUserName(storedName);
+    }
+
     // Set up authentication state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session);
@@ -31,7 +41,7 @@ const Index: React.FC = () => {
       }
     });
 
-    // Check for existing session
+    // Check for existing session from Supabase
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setIsAuthenticated(true);

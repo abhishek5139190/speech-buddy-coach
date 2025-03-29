@@ -39,6 +39,9 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
     const result = await verifyOtpCode(email, otp);
     
     if (result.success) {
+      // Ensure session persistence by storing in localStorage
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('userName', email.split('@')[0] || 'User');
       onAuthenticated();
     } else {
       setError(result.error || "Failed to verify code");

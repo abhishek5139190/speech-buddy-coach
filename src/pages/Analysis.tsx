@@ -6,25 +6,32 @@ import AnalysisScreen from '@/components/AnalysisScreen';
 import { toast } from "@/components/ui/use-toast";
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Analysis: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is authenticated
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    // First check localStorage for immediate UI response
+    const isAuthFromStorage = localStorage.getItem('isAuthenticated') === 'true';
     
-    if (!isAuthenticated) {
-      toast({
-        variant: "destructive",
-        title: "Authentication required",
-        description: "Please sign in to access this page",
+    if (!isAuthFromStorage) {
+      // Then verify with Supabase for security
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) {
+          toast({
+            variant: "destructive",
+            title: "Authentication required",
+            description: "Please sign in to access this page",
+          });
+          navigate('/');
+        }
       });
-      navigate('/');
     }
   }, [navigate]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userName');
     navigate('/');
