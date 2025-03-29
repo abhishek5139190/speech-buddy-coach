@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Info } from "lucide-react";
 import EmailOtpAuth from './EmailOtpAuth';
 
 interface AuthProps {
@@ -37,11 +37,11 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
       // When they return, we'll handle the session in onAuthStateChange in Index.tsx
     } catch (error) {
       console.error("Authentication error:", error);
-      setError("Failed to sign in with Google. Please try again.");
+      setError("Failed to sign in with Google. Please check if the Google provider is enabled in Supabase.");
       toast({
         variant: "destructive",
         title: "Authentication failed",
-        description: "Please try again later",
+        description: "Please try again later or use email login",
       });
     } finally {
       setIsLoading(false);
@@ -76,10 +76,17 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
                   <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
                 </div>
               </div>
+              <Alert variant="info" className="mb-4 bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-500" />
+                <AlertDescription className="text-blue-700">
+                  Google Sign In requires configuration in Supabase. Please check the authentication settings.
+                </AlertDescription>
+              </Alert>
               <Button 
                 variant="outline" 
                 onClick={() => setAuthMethod('google')}
                 className="w-full flex items-center justify-center gap-2 h-11 md:h-12"
+                disabled={true}
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -100,15 +107,21 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
                   />
                   <path d="M1 1h22v22H1z" fill="none" />
                 </svg>
-                <span className="text-base">Google Sign In</span>
+                <span className="text-base">Google Sign In (Disabled)</span>
               </Button>
             </>
           ) : (
             <>
+              <Alert variant="info" className="mb-4 bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-500" />
+                <AlertDescription className="text-blue-700">
+                  Google Sign In requires configuration in Supabase. Please use email login until it's configured.
+                </AlertDescription>
+              </Alert>
               <Button 
                 variant="outline" 
                 onClick={handleGoogleLogin}
-                disabled={isLoading}
+                disabled={true}
                 className="w-full flex items-center justify-center gap-2 h-11 md:h-12"
               >
                 {isLoading ? (
@@ -134,7 +147,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
                     <path d="M1 1h22v22H1z" fill="none" />
                   </svg>
                 )}
-                <span className="text-base">{isLoading ? "Signing in..." : "Continue with Google"}</span>
+                <span className="text-base">{isLoading ? "Signing in..." : "Continue with Google (Disabled)"}</span>
               </Button>
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
