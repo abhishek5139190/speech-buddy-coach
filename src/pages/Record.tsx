@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -33,35 +32,20 @@ const Record: React.FC = () => {
           navigate('/');
           return;
         }
+
+        // Call the Edge Function to create the videos bucket if it doesn't exist
+        const response = await supabase.functions.invoke('create-videos-bucket');
         
-        // Check if videos bucket exists in storage
-        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-        
-        if (bucketsError) {
-          console.error("Error fetching storage buckets:", bucketsError);
-          throw new Error(`Storage error: ${bucketsError.message}`);
+        if (response.error) {
+          console.error("Error calling create-videos-bucket function:", response.error);
+          throw new Error(`Failed to configure video storage: ${response.error.message}`);
         }
         
-        const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
-        
-        if (!videoBucket) {
-          console.log("Videos storage bucket does not exist, creating it now...");
-          
-          // Create the videos bucket
-          const { error: createBucketError } = await supabase.storage.createBucket('videos', {
-            public: true
-          });
-          
-          if (createBucketError) {
-            console.error("Error creating videos bucket:", createBucketError);
-            throw new Error(`Failed to create storage bucket: ${createBucketError.message}`);
-          }
-          
-          console.log("Videos bucket created successfully");
+        if (response.data.success) {
+          console.log("Videos bucket setup response:", response.data.message);
           setBucketCreated(true);
         } else {
-          console.log("Videos bucket exists:", videoBucket.name);
-          setBucketCreated(true);
+          throw new Error(`Failed to configure video storage: ${response.data.error || 'Unknown error'}`);
         }
         
         setIsLoading(false);

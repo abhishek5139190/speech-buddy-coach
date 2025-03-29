@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +44,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       timerId = window.setInterval(() => {
         setTimeLeft(prev => {
           const newTimeLeft = prev - 1;
-          // Update progress as percentage of time elapsed
           setProgress(((MAX_RECORDING_TIME - newTimeLeft) / MAX_RECORDING_TIME) * 100);
           return newTimeLeft;
         });
@@ -65,7 +63,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
     };
   }, [recordingStatus, timeLeft]);
 
-  // Effect to check for bucket readiness and clear error if bucket becomes ready
   useEffect(() => {
     if (isBucketReady && errorDetails && errorDetails.includes('bucket')) {
       setErrorDetails(null);
@@ -98,7 +95,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
   const startRecording = () => {
     if (!stream) return;
     
-    // Reset any previous error
     setErrorDetails(null);
     setRecordingStatus('recording');
     setTimeLeft(MAX_RECORDING_TIME);
@@ -144,7 +140,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
   
   const checkVideoBucket = async (): Promise<boolean> => {
     try {
-      // Check if the videos bucket exists
       const { data: buckets, error } = await supabase.storage.listBuckets();
       
       if (error) {
@@ -153,24 +148,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       }
       
       const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
-      
-      if (!videoBucket) {
-        // Try to create the bucket
-        console.log("Videos bucket not found, attempting to create it...");
-        const { error: createError } = await supabase.storage.createBucket('videos', {
-          public: true
-        });
-        
-        if (createError) {
-          console.error("Error creating videos bucket:", createError);
-          return false;
-        }
-        
-        console.log("Videos bucket created successfully");
-        return true;
-      }
-      
-      return true;
+      return !!videoBucket;
     } catch (error) {
       console.error("Error checking video bucket:", error);
       return false;
@@ -191,7 +169,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
     setErrorDetails(null);
     
     try {
-      // Check for authentication first
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("Not authenticated");
@@ -199,22 +176,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       const userId = session.user.id;
       
-      // First check if videos bucket exists
       const bucketExists = await checkVideoBucket();
       if (!bucketExists) {
-        throw new Error("Video storage bucket ('videos') is not configured properly. Please try refreshing the page.");
+        throw new Error("Video storage bucket ('videos') is not available. Please refresh the page and try again.");
       }
       
       const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
       const audioUrl = URL.createObjectURL(audioBlob);
       
-      // Save to localStorage for immediate preview
       localStorage.setItem('recordingUrl', audioUrl);
       
-      // Create a unique filename using UUID
       const filename = `${userId}/${Date.now()}.webm`;
       
-      // Upload to Supabase Storage
       toast({
         title: "Uploading video",
         description: "Saving your recording to the cloud...",
@@ -232,7 +205,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
       
-      // Get the public URL
       const { data: publicURLData } = supabase.storage
         .from('videos')
         .getPublicUrl(filename);
@@ -241,7 +213,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       console.log("Video uploaded successfully, URL:", videoUrl);
       
-      // Save metadata to the database
       const { data: videoAnalysis, error: dbError } = await supabase
         .from('video_analysis')
         .insert({
@@ -258,13 +229,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       console.log("Video analysis record created:", videoAnalysis);
       
-      // Start transcription process
       toast({
         title: "Processing transcription",
         description: "Your video is being processed for transcription...",
       });
       
-      // Call edge function to start transcription
       const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('transcribe-video', {
         body: { 
           videoUrl,
@@ -274,7 +243,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
       
       if (transcriptionError) {
         console.error("Transcription error:", transcriptionError);
-        // Continue anyway, as we'll poll for the transcript
       } else {
         console.log("Transcription initiated:", transcriptionData);
       }
@@ -284,7 +252,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
         description: "Your recording has been saved and transcription is in progress.",
       });
       
-      // Navigate to analysis page
       navigate('/analysis');
     } catch (error) {
       console.error("Error processing recording:", error);
@@ -300,7 +267,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
     }
   };
 
-  // Format time as MM:SS
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -343,7 +309,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ isBucketReady = false
             )}
           </div>
           
-          {/* Progress bar for recording */}
           {(recordingStatus === 'recording' || recordingStatus === 'paused') && (
             <div className="px-6 pt-4">
               <Progress value={progress} className="h-2" />
