@@ -60,8 +60,8 @@ serve(async (req) => {
     console.log("Sending to Eleven Labs for transcription...");
     const formData = new FormData();
     
-    // Add required model_id parameter - using multilingual model for best accuracy
-    formData.append("model_id", "eleven_multilingual_v2");
+    // Add required model_id parameter - using the correct model ID
+    formData.append("model_id", "scribe_v1");
     formData.append("file", videoBlob, "recording.webm");
     
     const elevenLabsApiKey = Deno.env.get("ELEVEN_LABS_API_KEY") as string;
