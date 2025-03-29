@@ -14,7 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    const { videoUrl, userId } = await req.json();
+    console.log("Transcribe video function called");
+    
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (error) {
+      console.error("Error parsing request body:", error);
+      throw new Error("Invalid request body format");
+    }
+    
+    const { videoUrl, userId } = requestBody;
     
     if (!videoUrl) {
       throw new Error("Video URL is required");
@@ -25,22 +35,33 @@ serve(async (req) => {
     }
 
     console.log(`Processing transcription for video: ${videoUrl}`);
+    console.log(`User ID: ${userId}`);
     
     // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Supabase configuration is missing");
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Fetch the video content
     console.log("Fetching video content...");
     const videoResponse = await fetch(videoUrl);
     if (!videoResponse.ok) {
+      console.error(`Video fetch error: ${videoResponse.status} ${videoResponse.statusText}`);
       throw new Error(`Failed to fetch video: ${videoResponse.statusText}`);
     }
     
     // Get video as blob
     const videoBlob = await videoResponse.blob();
     console.log(`Video blob size: ${videoBlob.size} bytes`);
+    
+    if (videoBlob.size === 0) {
+      throw new Error("Video content is empty");
+    }
     
     // Use Eleven Labs API to transcribe
     console.log("Sending to Eleven Labs for transcription...");
@@ -82,6 +103,8 @@ serve(async (req) => {
       console.error("Error updating transcript:", error);
       throw new Error(`Failed to update transcript: ${error.message}`);
     }
+    
+    console.log("Transcription successfully saved to database");
     
     return new Response(
       JSON.stringify({ success: true, transcript }),

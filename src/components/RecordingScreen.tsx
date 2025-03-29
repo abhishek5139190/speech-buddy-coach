@@ -20,6 +20,7 @@ const RecordingScreen: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number>(MAX_RECORDING_TIME);
   const [progress, setProgress] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -86,6 +87,8 @@ const RecordingScreen: React.FC = () => {
   const startRecording = () => {
     if (!stream) return;
     
+    // Reset any previous error
+    setErrorDetails(null);
     setRecordingStatus('recording');
     setTimeLeft(MAX_RECORDING_TIME);
     setProgress(0);
@@ -125,6 +128,24 @@ const RecordingScreen: React.FC = () => {
     setTimeLeft(MAX_RECORDING_TIME);
     setProgress(0);
     setRecordingStatus('inactive');
+    setErrorDetails(null);
+  };
+  
+  const checkVideoBucket = async (): Promise<boolean> => {
+    try {
+      // Check if the videos bucket exists
+      const { data: buckets, error } = await supabase.storage.listBuckets();
+      
+      if (error) {
+        throw new Error(`Failed to list buckets: ${error.message}`);
+      }
+      
+      const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
+      return !!videoBucket;
+    } catch (error) {
+      console.error("Error checking video bucket:", error);
+      return false;
+    }
   };
   
   const processRecording = async () => {
@@ -138,21 +159,28 @@ const RecordingScreen: React.FC = () => {
     }
     
     setIsProcessing(true);
+    setErrorDetails(null);
     
     try {
-      const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      // Save to localStorage for immediate preview
-      localStorage.setItem('recordingUrl', audioUrl);
-
-      // Get current user
+      // Check for authentication first
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("Not authenticated");
       }
       
       const userId = session.user.id;
+      
+      // First check if videos bucket exists
+      const bucketExists = await checkVideoBucket();
+      if (!bucketExists) {
+        throw new Error("Video storage bucket ('videos') is not configured properly. Please contact support.");
+      }
+      
+      const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Save to localStorage for immediate preview
+      localStorage.setItem('recordingUrl', audioUrl);
       
       // Create a unique filename using UUID
       const filename = `${userId}/${Date.now()}.webm`;
@@ -162,14 +190,6 @@ const RecordingScreen: React.FC = () => {
         title: "Uploading video",
         description: "Saving your recording to the cloud...",
       });
-      
-      // First check if storage bucket exists, if not, let the user know
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const videoBucket = buckets?.find(bucket => bucket.name === 'videos');
-      
-      if (!videoBucket) {
-        throw new Error("Video storage is not configured. Please contact support.");
-      }
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('videos')
@@ -239,10 +259,12 @@ const RecordingScreen: React.FC = () => {
       navigate('/analysis');
     } catch (error) {
       console.error("Error processing recording:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      setErrorDetails(errorMessage);
       toast({
         variant: "destructive",
         title: "Processing failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description: errorMessage,
       });
     } finally {
       setIsProcessing(false);
@@ -293,6 +315,13 @@ const RecordingScreen: React.FC = () => {
           )}
           
           <div className="p-6 flex flex-col space-y-4">
+            {errorDetails && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                <p className="font-medium">Error:</p>
+                <p>{errorDetails}</p>
+              </div>
+            )}
+            
             <div className="flex items-center justify-center space-x-4">
               {recordingStatus === 'inactive' && audioChunks.length === 0 && (
                 <Button
