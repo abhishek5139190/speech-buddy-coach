@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -170,9 +171,9 @@ const EmailOtpAuth: React.FC<EmailOtpAuthProps> = ({ onAuthenticated }) => {
                       {...field} 
                       render={({ slots }) => (
                         <InputOTPGroup className="gap-2 justify-center">
-                          {slots && Array.isArray(slots) ? slots.map((slot, index) => (
+                          {slots.map((slot, index) => (
                             <InputOTPSlot key={index} {...slot} index={index} className="h-12 w-12 text-center text-lg" />
-                          )) : null}
+                          ))}
                         </InputOTPGroup>
                       )}
                     />
