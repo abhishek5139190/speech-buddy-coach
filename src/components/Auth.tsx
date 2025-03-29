@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface AuthProps {
   onAuthenticated: () => void;
@@ -10,25 +13,29 @@ interface AuthProps {
 
 const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock authentication function, would be replaced with actual Supabase auth
   const handleGoogleLogin = async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock successful authentication
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userName', 'Demo User');
-      
-      onAuthenticated();
-      toast({
-        title: "Successfully signed in",
-        description: "Welcome to AI Communication Coach",
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
       });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // The user will be redirected to Google for authentication
+      // When they return, we'll handle the session in onAuthStateChange in Index.tsx
     } catch (error) {
       console.error("Authentication error:", error);
+      setError("Failed to sign in with Google. Please try again.");
       toast({
         variant: "destructive",
         title: "Authentication failed",
@@ -48,6 +55,12 @@ const Auth: React.FC<AuthProps> = ({ onAuthenticated }) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <Button 
           variant="outline" 
           onClick={handleGoogleLogin}

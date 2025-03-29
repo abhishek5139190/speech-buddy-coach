@@ -1,28 +1,68 @@
+
 import React, { useState, useEffect } from 'react';
 import Auth from '@/components/Auth';
 import HomeOptions from '@/components/HomeOptions';
 import NavBar from '@/components/NavBar';
+import { supabase } from '@/integrations/supabase/client';
+import { Session } from '@supabase/supabase-js';
+
 const Index: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
+  const [session, setSession] = useState<Session | null>(null);
+
   useEffect(() => {
-    // Check if user is already authenticated
-    const authStatus = localStorage.getItem('isAuthenticated') === 'true';
-    const name = localStorage.getItem('userName') || '';
-    setIsAuthenticated(authStatus);
-    setUserName(name);
+    // Set up authentication state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session);
+      if (session) {
+        setIsAuthenticated(true);
+        setSession(session);
+        // Extract user name from session
+        const name = session.user?.user_metadata?.full_name || 
+                    session.user?.user_metadata?.name || 
+                    'User';
+        setUserName(name);
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userName', name);
+      } else {
+        setIsAuthenticated(false);
+        setSession(null);
+        setUserName('');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('userName');
+      }
+    });
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsAuthenticated(true);
+        setSession(session);
+        const name = session.user?.user_metadata?.full_name || 
+                   session.user?.user_metadata?.name || 
+                   'User';
+        setUserName(name);
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userName', name);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
   const handleAuthenticated = () => {
-    setIsAuthenticated(true);
-    const name = localStorage.getItem('userName') || '';
-    setUserName(name);
+    // This is called after auth component redirects back
+    // No need to handle here as onAuthStateChange will catch the session
   };
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userName');
-    setIsAuthenticated(false);
-    setUserName('');
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // State cleanup will be handled by onAuthStateChange
   };
+
   return <div className="min-h-screen flex flex-col bg-background">
       <NavBar isAuthenticated={isAuthenticated} onLogout={handleLogout} userName={userName} />
       
